@@ -8,8 +8,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import android.webkit.JavascriptInterface
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import com.rep.plus.network.CaptureService
 import com.rep.plus.storage.RequestDatabase
 import com.rep.plus.utils.PCAPdroidHelper
@@ -18,22 +16,18 @@ import org.json.JSONObject
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
-    private lateinit var pcapdroidLauncher: ActivityResultLauncher<Intent>
     private lateinit var requestDb: RequestDatabase
     private var captureServiceIntent: Intent? = null
+
+    companion object {
+        private const val REQUEST_CODE_PCAPDROID = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Initialize database
         requestDb = RequestDatabase(this)
-
-        // Setup PCAPdroid launcher
-        pcapdroidLauncher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            handlePCAPdroidResult(result.resultCode, result.data)
-        }
 
         // Setup WebView
         webView = WebView(this)
@@ -56,8 +50,8 @@ class MainActivity : Activity() {
             allowContentAccess = true
         }
 
-        webView.webChromeClient = WebChromeClient()
-        webView.webViewClient = WebViewClient()
+        webView.setWebChromeClient(WebChromeClient())
+        webView.setWebViewClient(WebViewClient())
 
         // Add JavaScript interface
         webView.addJavascriptInterface(RepJSBridge(this), "Android")
@@ -83,12 +77,12 @@ class MainActivity : Activity() {
             appFilter = null, // Capture all apps
             broadcastReceiver = "com.rep.plus.network.PCAPdroidReceiver"
         )
-        pcapdroidLauncher.launch(intent)
+        startActivityForResult(intent, REQUEST_CODE_PCAPDROID)
     }
 
     private fun stopCapture() {
         val intent = PCAPdroidHelper.createStopIntent()
-        pcapdroidLauncher.launch(intent)
+        startActivityForResult(intent, REQUEST_CODE_PCAPDROID)
 
         // Stop UDP service
         captureServiceIntent?.let {
@@ -97,8 +91,15 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_PCAPDROID) {
+            handlePCAPdroidResult(resultCode, data)
+        }
+    }
+
     private fun handlePCAPdroidResult(resultCode: Int, data: Intent?) {
-        if (resultCode == RESULT_OK) {
+        if (resultCode == Activity.RESULT_OK) {
             // PCAPdroid started successfully
             // Start our UDP receiver service
             captureServiceIntent = Intent(this, CaptureService::class.java).apply {
