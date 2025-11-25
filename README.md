@@ -99,27 +99,27 @@ Sponsorship helps me keep improving the extension, adding new features, and resp
 If **rep+ saved you time** during testing, development, or bug bounty work, please consider supporting the project.  
 **Every dollar helps. ❤️**
 
+### Maintained by
+
+[![Maintainer](https://avatars.githubusercontent.com/u/43368124?v=4&s=60)](https://github.com/bscript)
+
+---
+
+### Sponsors
+
 <p align="center">
-  <strong>Maintained by</strong><br><br>
-
-  <a href="https://github.com/bscript">
-    <img src="https://avatars.githubusercontent.com/u/43368124?v=4" width="60" style="border-radius:50%;" alt="Maintainer"/>
-  </a>
-
-  <br><br>
-  <strong>Sponsors</strong><br><br>
-
   <a href="https://github.com/Snownin9">
-    <img src="https://avatars.githubusercontent.com/u/218675317" width="60" style="border-radius:50%;" alt="Sponsor"/>
+    <img src="https://avatars.githubusercontent.com/u/218675317?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
   </a>
-
-  <!-- Add more sponsors here following the same format -->
-
-  <br><br>
-  <a href="https://github.com/sponsors/bscript">
-    <img src="https://img.shields.io/badge/Become%20a%20Sponsor-%F0%9F%92%96-ea4aaa?style=for-the-badge">
+  &nbsp;&nbsp;
+  <a href="https://github.com/exxoticx">
+    <img src="https://avatars.githubusercontent.com/u/50809037?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
   </a>
 </p>
+
+[![Become a Sponsor](https://img.shields.io/badge/Become%20a%20Sponsor-%F0%9F%92%96-ea4aaa?style=for-the-badge)](https://github.com/sponsors/bscript)
+
+
 
 
 
