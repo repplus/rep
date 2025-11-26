@@ -1,8 +1,88 @@
 // Request Handler Module
 import { state, addToHistory } from './state.js';
-import { elements, updateHistoryButtons } from './ui.js';
+import { elements, updateHistoryButtons, toggleOOSVisibility } from './ui.js';
 import { parseRequest, executeRequest } from './network.js';
 import { formatBytes, renderDiff, highlightHTTP } from './utils.js';
+
+/**
+ * Keyboard shortcut configuration
+ * Format: { key: 'KeyCode', ctrl: bool, shift: bool, alt: bool, action: fn, description: string }
+ * 
+ * To add new shortcuts:
+ * 1. Add entry to KEYBOARD_SHORTCUTS array
+ * 2. Action function receives the KeyboardEvent
+ */
+const KEYBOARD_SHORTCUTS = [
+    {
+        key: 'Space',
+        ctrl: true,
+        description: 'Send request',
+        action: () => {
+            const sendBtn = document.getElementById('send-btn');
+            if (sendBtn && !sendBtn.disabled) {
+                handleSendRequest();
+            }
+        }
+    },
+    {
+        key: 'KeyL',
+        ctrl: true,
+        description: 'Clear request input',
+        action: () => {
+            if (elements.rawRequestInput) {
+                elements.rawRequestInput.innerText = '';
+                elements.rawRequestInput.focus();
+            }
+        }
+    },
+    {
+        key: 'KeyO',
+        ctrl: true,
+        shift: true,
+        description: 'Toggle OOS visibility',
+        action: () => {
+            toggleOOSVisibility();
+        }
+    }
+];
+
+/**
+ * Check if a keyboard event matches a shortcut definition
+ */
+function matchesShortcut(event, shortcut) {
+    const ctrlMatch = shortcut.ctrl ? (event.ctrlKey || event.metaKey) : !(event.ctrlKey || event.metaKey);
+    const shiftMatch = shortcut.shift ? event.shiftKey : !event.shiftKey;
+    const altMatch = shortcut.alt ? event.altKey : !event.altKey;
+    const keyMatch = event.code === shortcut.key;
+    
+    return keyMatch && ctrlMatch && shiftMatch && altMatch;
+}
+
+/**
+ * Initialize keyboard shortcuts for the request panel
+ */
+export function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        for (const shortcut of KEYBOARD_SHORTCUTS) {
+            if (matchesShortcut(e, shortcut)) {
+                e.preventDefault();
+                shortcut.action(e);
+                return;
+            }
+        }
+    });
+}
+
+/**
+ * Get all registered keyboard shortcuts (for help/documentation)
+ */
+export function getKeyboardShortcuts() {
+    return KEYBOARD_SHORTCUTS.map(s => ({
+        key: s.key,
+        modifiers: [s.ctrl && 'Ctrl', s.shift && 'Shift', s.alt && 'Alt'].filter(Boolean),
+        description: s.description
+    }));
+}
 
 export async function handleSendRequest() {
     const rawContent = elements.rawRequestInput.innerText;

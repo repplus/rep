@@ -1,5 +1,5 @@
 // UI Logic
-import { state, addToHistory, clearRequests } from './state.js';
+import { state, addToHistory, clearRequests, isOutOfScope } from './state.js';
 import { formatTime, formatBytes, highlightHTTP, escapeHtml, testRegex, decodeJWT, copyToClipboard } from './utils.js';
 
 // DOM Elements (initialized in initUI)
@@ -28,6 +28,10 @@ export function initUI() {
     elements.importFile = document.getElementById('import-file');
     elements.diffToggle = document.querySelector('.diff-toggle');
     elements.showDiffCheckbox = document.getElementById('show-diff');
+    // OOS elements
+    elements.oosToggle = document.getElementById('oos-toggle');
+    elements.requestStats = document.getElementById('request-stats');
+    elements.requestListHeader = document.querySelector('.request-list-header');
 }
 
 const STAR_ICON_FILLED = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
@@ -37,8 +41,15 @@ export function renderRequestItem(request, index) {
     const item = document.createElement('div');
     item.className = 'request-item';
     if (request.starred) item.classList.add('starred');
+    if (request.isOOS) item.classList.add('oos-item');
     item.dataset.index = index;
     item.dataset.method = request.request.method;
+    item.dataset.num = request.num || index + 1;
+
+    // Request number
+    const numSpan = document.createElement('span');
+    numSpan.className = 'req-num';
+    numSpan.textContent = request.num || index + 1;
 
     const methodSpan = document.createElement('span');
     methodSpan.className = `req-method ${request.request.method}`;
@@ -88,6 +99,7 @@ export function renderRequestItem(request, index) {
 
     actionsDiv.appendChild(starBtn);
 
+    item.appendChild(numSpan);
     item.appendChild(methodSpan);
     item.appendChild(urlSpan);
     item.appendChild(timeSpan);
@@ -200,6 +212,7 @@ export function selectRequest(index) {
 export function filterRequests() {
     const items = elements.requestList.querySelectorAll('.request-item');
     let visibleCount = 0;
+    let oosCount = 0;
     let regexError = false;
 
     items.forEach((item, index) => {
@@ -209,6 +222,10 @@ export function filterRequests() {
         const url = request.request.url;
         const urlLower = url.toLowerCase();
         const method = request.request.method.toUpperCase();
+
+        // Check OOS
+        const isOOS = request.isOOS;
+        if (isOOS) oosCount++;
 
         // Build searchable text from headers
         let headersText = '';
@@ -260,18 +277,26 @@ export function filterRequests() {
         if (state.currentFilter !== 'all') {
             if (state.currentFilter === 'starred') {
                 matchesFilter = request.starred;
+            } else if (state.currentFilter === 'oos') {
+                matchesFilter = !!isOOS; // only show out-of-scope
             } else {
                 matchesFilter = method === state.currentFilter;
             }
         }
 
-        if (matchesSearch && matchesFilter) {
+        // Check OOS visibility - when hideOOS is true, hide OOS items
+        const matchesOOS = state.hideOOS ? !isOOS : true;
+
+        if (matchesSearch && matchesFilter && matchesOOS) {
             item.style.display = 'flex';
             visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+
+    // Update OOS stats
+    updateOOSStats(visibleCount, oosCount);
 
     // Show error state if regex is invalid
     if (regexError && state.useRegex && state.currentSearchTerm) {
@@ -841,7 +866,8 @@ export function importRequests(file) {
                         content: { text: item.response ? item.response.body : '' }
                     },
                     capturedAt: item.timestamp || Date.now(),
-                    starred: false
+                    starred: false,
+                    isOOS: isOutOfScope(item.url || '')
                 };
 
                 state.requests.push(newReq);
@@ -857,4 +883,126 @@ export function importRequests(file) {
     };
     reader.readAsText(file);
 }
-// I will add them in the next step to avoid hitting the output limit.
+
+/**
+ * Update OOS statistics display
+ */
+export function updateOOSStats(visibleCount, oosCount) {
+    if (elements.requestStats) {
+        const total = state.requests.length;
+        const hiddenOOS = state.hideOOS ? oosCount : 0;
+        elements.requestStats.textContent = `${visibleCount} visible${hiddenOOS > 0 ? ` (${hiddenOOS} OOS hidden)` : ''} / ${total} total`;
+    }
+}
+
+/**
+ * Toggle OOS visibility
+ */
+export function toggleOOSVisibility() {
+    state.hideOOS = !state.hideOOS;
+    
+    if (elements.oosToggle) {
+        elements.oosToggle.classList.toggle('active', state.hideOOS);
+        elements.oosToggle.title = state.hideOOS ? 'Show all requests (including OOS)' : 'Hide framework noise (OOS)';
+    }
+    
+    filterRequests();
+}
+
+/**
+ * Sort requests by column
+ * @param {string} column - Column to sort by ('num', 'method', 'url', 'time')
+ */
+export function sortByColumn(column) {
+    // Toggle sort order if same column, otherwise default to ascending
+    if (state.sortColumn === column) {
+        state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+        state.sortColumn = column;
+        state.sortOrder = 'asc';
+    }
+    
+    // Update header indicators
+    updateSortIndicators();
+    
+    // Sort the DOM elements
+    const items = Array.from(elements.requestList.querySelectorAll('.request-item'));
+    
+    items.sort((a, b) => {
+        const reqA = state.requests[parseInt(a.dataset.index)];
+        const reqB = state.requests[parseInt(b.dataset.index)];
+        
+        if (!reqA || !reqB) return 0;
+        
+        let comparison = 0;
+        
+        switch (column) {
+            case 'num':
+                comparison = (reqA.num || 0) - (reqB.num || 0);
+                break;
+            case 'method':
+                comparison = reqA.request.method.localeCompare(reqB.request.method);
+                break;
+            case 'url':
+                try {
+                    const urlA = new URL(reqA.request.url);
+                    const urlB = new URL(reqB.request.url);
+                    comparison = (urlA.pathname + urlA.search).localeCompare(urlB.pathname + urlB.search);
+                } catch {
+                    comparison = reqA.request.url.localeCompare(reqB.request.url);
+                }
+                break;
+            case 'time':
+                comparison = (reqA.capturedAt || 0) - (reqB.capturedAt || 0);
+                break;
+            default:
+                comparison = 0;
+        }
+        
+        return state.sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    // Re-append sorted items
+    items.forEach(item => elements.requestList.appendChild(item));
+}
+
+/**
+ * Update sort indicator in header
+ */
+function updateSortIndicators() {
+    if (!elements.requestListHeader) return;
+    
+    const sortableHeaders = elements.requestListHeader.querySelectorAll('[data-sort]');
+    sortableHeaders.forEach(header => {
+        header.classList.remove('sort-asc', 'sort-desc');
+        if (header.dataset.sort === state.sortColumn) {
+            header.classList.add(state.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+    });
+}
+
+/**
+ * Initialize sort header click handlers
+ */
+export function initSortableHeaders() {
+    if (!elements.requestListHeader) return;
+    
+    const sortableHeaders = elements.requestListHeader.querySelectorAll('[data-sort]');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            sortByColumn(header.dataset.sort);
+        });
+    });
+    
+    // Set initial sort indicator
+    updateSortIndicators();
+}
+
+/**
+ * Initialize OOS toggle button
+ */
+export function initOOSToggle() {
+    if (elements.oosToggle) {
+        elements.oosToggle.addEventListener('click', toggleOOSVisibility);
+    }
+}

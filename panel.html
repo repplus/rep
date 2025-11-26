@@ -61,7 +61,15 @@
                     <button class="filter-btn" data-filter="PUT">PUT</button>
                     <button class="filter-btn" data-filter="DELETE">DELETE</button>
                     <button class="filter-btn" data-filter="starred" title="Show Starred">★</button>
+                    <button id="oos-toggle" class="filter-btn" title="Show framework noise (OOS)">OOS</button>
+                    <span id="request-stats" class="request-stats"></span>
                 </div>
+            </div>
+            <div class="request-list-header">
+                <span class="header-num" data-sort="num" title="Click to sort by request number">#</span>
+                <span class="header-method" data-sort="method" title="Click to sort by method">Method</span>
+                <span class="header-url" data-sort="url" title="Click to sort by URL">Path</span>
+                <span class="header-time" data-sort="time" title="Click to sort by time">Time</span>
             </div>
             <div id="request-list" class="request-list">
                 <!-- Requests will be populated here -->
@@ -478,6 +486,23 @@
                 <div class="modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end;">
                     <button id="start-scan-btn" class="primary-btn">Start Scan</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content settings-modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="settings-close" class="icon-btn">×</button>
+            </div>
+            <div id="settings-content" class="settings-container">
+                <!-- Settings sections will be dynamically rendered here -->
+            </div>
+            <div class="modal-footer">
+                <button id="settings-reset" class="secondary-btn">Reset to Defaults</button>
+                <button id="settings-save" class="primary-btn">Save Settings</button>
             </div>
         </div>
     </div>
