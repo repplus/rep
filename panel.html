@@ -255,6 +255,7 @@
                         <button class="view-tab active" data-view="pretty" data-pane="response">Pretty</button>
                         <button class="view-tab" data-view="raw" data-pane="response">Raw</button>
                         <button class="view-tab" data-view="hex" data-pane="response">Hex</button>
+                        <button class="view-tab" data-view="json" data-pane="response">Json</button>
                     </div>
                     <div class="pane-body">
                         <div class="editor-container">
@@ -267,6 +268,9 @@
                             <div id="res-view-hex" class="view-content" style="display: none;">
                                 <pre id="res-hex-display" class="hex-display"></pre>
                             </div>
+                            <div id="res-view-json" class="view-content" style="display: none;">
++                                <pre id="res-json-display" class="json-display"></pre>
++                            </div>
                         </div>
                         <div class="search-bar-container">
                             <input type="text" id="response-search" class="search-input"

@@ -1,6 +1,7 @@
 import { state, addToHistory, clearRequests } from './state.js';
 import { formatTime, formatBytes, highlightHTTP, escapeHtml, testRegex, decodeJWT, copyToClipboard, getHostname } from './utils.js';
 import { generateHexView } from './hex-view.js';
+import { generateJsonView } from './json-view.js';
 
 // DOM Elements (initialized in initUI)
 export const elements = {};
@@ -328,7 +329,7 @@ function switchResponseView(view) {
     });
 
     // Update Content Visibility
-    ['pretty', 'raw', 'hex', 'render'].forEach(v => {
+    ['pretty', 'raw', 'hex', 'render', 'json'].forEach(v => {
         const el = document.getElementById(`res-view-${v}`);
         if (el) {
             el.style.display = v === view ? 'flex' : 'none';
@@ -346,6 +347,12 @@ function switchResponseView(view) {
     } else if (view === 'hex') {
         const hexDisplay = document.getElementById('res-hex-display');
         if (hexDisplay) hexDisplay.textContent = generateHexView(content);
+    } else if (view === 'json') {
+        const jsonDisplay = document.getElementById('res-json-display');
+        if (jsonDisplay) {
+            jsonDisplay.innerHTML = '';
+            jsonDisplay.appendChild(generateJsonView(content));
+        }
     }
 }
 
