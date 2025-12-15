@@ -717,15 +717,118 @@ function handleEncodeDecode(action) {
 }
 
 export async function captureScreenshot() {
-    // Screenshot logic using html2canvas
-    // For brevity, I'll assume html2canvas is global
-    if (typeof html2canvas === 'undefined') {
-        alert('html2canvas library not loaded');
-        return;
-    }
+    // Capture only the full request and response content (no headers/search bars),
+    // and make sure the entire text is visible in the image.
+    try {
+        if (typeof html2canvas === 'undefined') {
+            alert('html2canvas library not loaded');
+            return;
+        }
 
-    // Implementation omitted for brevity, but should be here
-    console.log('Screenshot captured (mock)');
+        const requestEditor = document.querySelector('#raw-request-input');
+        const responseActiveView = document.querySelector('.response-pane .view-content.active');
+        const responseContentNode = responseActiveView
+            ? responseActiveView.querySelector('#raw-response-display, #raw-response-text, #res-hex-display, pre, textarea') || responseActiveView
+            : null;
+
+        if (!requestEditor || !responseContentNode) {
+            alert('Unable to find request/response content for screenshot.');
+            return;
+        }
+
+        // Build an off-screen container that holds only the editors' content.
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '-99999px';
+        wrapper.style.top = '0';
+        wrapper.style.zIndex = '-1';
+        wrapper.style.background = getComputedStyle(document.body).backgroundColor || '#1e1e1e';
+        wrapper.style.padding = '16px';
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'row'; // side by side
+        wrapper.style.gap = '16px';
+        wrapper.style.fontFamily = getComputedStyle(document.body).fontFamily || 'monospace';
+
+        // Helper to clone a node (keeping syntax highlighting / colors) into a section
+        const makeSection = (title, sourceNode) => {
+            const section = document.createElement('div');
+            section.style.display = 'flex';
+            section.style.flexDirection = 'column';
+            section.style.gap = '8px';
+            section.style.flex = '1 1 0';
+            section.style.minWidth = '0'; // allow flex shrink without overflow
+
+            const heading = document.createElement('div');
+            heading.textContent = title;
+            heading.style.fontWeight = '600';
+            heading.style.fontSize = '14px';
+            section.appendChild(heading);
+
+            const contentWrapper = document.createElement('div');
+            contentWrapper.style.margin = '0';
+            contentWrapper.style.padding = '8px 10px';
+            contentWrapper.style.borderRadius = '6px';
+            contentWrapper.style.background = getComputedStyle(sourceNode).backgroundColor || 'rgba(0,0,0,0.4)';
+            contentWrapper.style.overflow = 'visible';
+
+            const clone = sourceNode.cloneNode(true);
+            // Avoid duplicate IDs in the document
+            clone.removeAttribute('id');
+            // Ensure cloned content can expand fully
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            clone.style.width = '100%';
+
+            // Explicitly preserve multi-line layout and font from the original,
+            // even after we remove the id (so id-based CSS no longer applies).
+            const srcStyles = getComputedStyle(sourceNode);
+            clone.style.whiteSpace = srcStyles.whiteSpace || 'pre-wrap';
+            clone.style.wordBreak = srcStyles.wordBreak || 'break-all';
+            clone.style.overflowWrap = srcStyles.overflowWrap || 'break-word';
+            clone.style.fontFamily = srcStyles.fontFamily || 'Consolas, Monaco, monospace';
+            clone.style.fontSize = srcStyles.fontSize || '13px';
+            clone.style.lineHeight = srcStyles.lineHeight || '1.5';
+
+            contentWrapper.appendChild(clone);
+            section.appendChild(contentWrapper);
+            return section;
+        };
+
+        const reqSection = makeSection('Request', requestEditor);
+        const resSection = makeSection('Response', responseContentNode);
+
+        wrapper.appendChild(reqSection);
+        wrapper.appendChild(resSection);
+        document.body.appendChild(wrapper);
+
+        // Let layout settle
+        const canvas = await html2canvas(wrapper, {
+            backgroundColor: wrapper.style.background,
+            scrollX: 0,
+            scrollY: 0,
+        });
+
+        document.body.removeChild(wrapper);
+
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                alert('Failed to generate screenshot image.');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `rep-request-response-${timestamp}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
+    } catch (error) {
+        console.error('Screenshot capture failed:', error);
+        alert(`Screenshot failed: ${error.message}`);
+    }
 }
 
 function getFilteredRequests() {
