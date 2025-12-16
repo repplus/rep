@@ -70,6 +70,7 @@ export function setupResizeHandle() {
     const requestPane = document.querySelector('.request-pane');
     const responsePane = document.querySelector('.response-pane');
     const container = document.querySelector('.main-content');
+    const previewIframe = document.getElementById('response-preview-iframe');
 
     if (!resizeHandle || !requestPane || !responsePane) return;
 
@@ -83,6 +84,11 @@ export function setupResizeHandle() {
     resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
         resizeHandle.classList.add('resizing');
+        // Prevent iframe from swallowing mouseup when preview is visible
+        if (previewIframe) {
+            previewIframe.dataset.prevPointerEvents = previewIframe.style.pointerEvents || '';
+            previewIframe.style.pointerEvents = 'none';
+        }
         const isVertical = document.querySelector('.split-view-container').classList.contains('vertical-layout');
         document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
@@ -105,7 +111,16 @@ export function setupResizeHandle() {
         } else {
             const offsetX = e.clientX - containerRect.left;
             const containerWidth = containerRect.width;
-            let percentage = (offsetX / containerWidth) * 100;
+
+            // Enforce minimum pixel widths to avoid layout cracking
+            const minLeftPx = 250;
+            const minRightPx = 250;
+            const clampedOffsetX = Math.min(
+                Math.max(offsetX, minLeftPx),
+                Math.max(containerWidth - minRightPx, minLeftPx)
+            );
+
+            let percentage = (clampedOffsetX / containerWidth) * 100;
             percentage = Math.max(20, Math.min(80, percentage));
 
             requestPane.style.flex = `0 0 ${percentage}%`;
@@ -117,6 +132,10 @@ export function setupResizeHandle() {
         if (isResizing) {
             isResizing = false;
             resizeHandle.classList.remove('resizing');
+            if (previewIframe) {
+                previewIframe.style.pointerEvents = previewIframe.dataset.prevPointerEvents || '';
+                delete previewIframe.dataset.prevPointerEvents;
+            }
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         }
