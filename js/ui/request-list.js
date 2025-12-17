@@ -90,6 +90,37 @@ export function createPageGroup(pageUrl) {
     return group;
 }
 
+// Root path group for first-party requests under a page
+function createPathGroup() {
+    const group = document.createElement('div');
+    group.className = 'path-group expanded'; // default expanded
+    group.id = 'path-root';
+
+    const header = document.createElement('div');
+    header.className = 'path-header';
+    header.innerHTML = `
+        <span class="group-toggle">▼</span>
+        <span class="path-icon">🗂️</span>
+        <span class="path-name">/</span>
+        <span class="path-count">(0)</span>
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'path-content';
+
+    header.addEventListener('click', (e) => {
+        // No buttons to skip; entire header toggles
+        group.classList.toggle('expanded');
+        const toggle = header.querySelector('.group-toggle');
+        const isExpanded = group.classList.contains('expanded');
+        if (toggle) toggle.textContent = isExpanded ? '▼' : '▶';
+    });
+
+    group.appendChild(header);
+    group.appendChild(content);
+    return group;
+}
+
 export function createDomainGroup(hostname, isThirdParty = false) {
     const group = document.createElement('div');
     group.className = `domain-group${isThirdParty ? ' third-party' : ''}`;
@@ -447,21 +478,26 @@ export function renderRequestItem(request, index) {
         const domainCount = parseInt(domainCountSpan.textContent.replace(/[()]/g, '')) || 0;
         domainCountSpan.textContent = `(${domainCount + 1})`;
     } else {
-        // First-party request - insert at top (before other first-party requests and domain groups)
-        const firstDomainGroup = pageContent.querySelector('.domain-group');
-        // Only select direct children request items, not those nested in domain groups
-        const firstFirstPartyRequest = pageContent.querySelector(':scope > .request-item');
-
-        if (firstFirstPartyRequest) {
-            // Insert before the first first-party request
-            pageContent.insertBefore(item, firstFirstPartyRequest);
-        } else if (firstDomainGroup) {
-            // No first-party requests yet, insert before domain groups
-            pageContent.insertBefore(item, firstDomainGroup);
-        } else {
-            // Empty page group
-            pageContent.appendChild(item);
+        // First-party request - place under root path group
+        let pathGroup = pageContent.querySelector('.path-group');
+        if (!pathGroup) {
+            pathGroup = createPathGroup();
+            // Insert path group before domain groups (if any)
+            const firstDomainGroup = pageContent.querySelector('.domain-group');
+            if (firstDomainGroup) {
+                pageContent.insertBefore(pathGroup, firstDomainGroup);
+            } else {
+                pageContent.appendChild(pathGroup);
+            }
         }
+        const pathContent = pathGroup.querySelector('.path-content');
+        // Prepend to show most recent first
+        pathContent.insertBefore(item, pathContent.firstChild);
+
+        // Update path count
+        const pathCountSpan = pathGroup.querySelector('.path-count');
+        const pathCount = parseInt(pathCountSpan.textContent.replace(/[()]/g, '')) || 0;
+        pathCountSpan.textContent = `(${pathCount + 1})`;
     }
 
     // Update page count
@@ -767,10 +803,23 @@ export function filterRequests() {
 
         // Auto-expand domain groups when filtering (unless manually collapsed)
         if (hasVisibleItems && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
-            const content = group.querySelector('.domain-content');
-            const toggleBtn = group.querySelector('.domain-toggle-btn');
-            if (content) content.style.display = 'block';
-            if (toggleBtn) toggleBtn.style.transform = 'rotate(90deg)';
+            group.classList.add('expanded');
+            const toggle = group.querySelector('.group-toggle');
+            if (toggle) toggle.textContent = '▼';
+        }
+    });
+
+    // Update path groups visibility (first-party root path)
+    const pathGroups = requestList.querySelectorAll('.path-group');
+    pathGroups.forEach(group => {
+        const hasVisibleItems = Array.from(group.querySelectorAll('.request-item')).some(item => item.style.display !== 'none');
+        group.style.display = hasVisibleItems ? 'block' : 'none';
+
+        // Auto-expand path group when filtering (unless manually collapsed)
+        if (hasVisibleItems && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
+            group.classList.add('expanded');
+            const toggle = group.querySelector('.group-toggle');
+            if (toggle) toggle.textContent = '▼';
         }
     });
 
@@ -778,16 +827,16 @@ export function filterRequests() {
     const pageGroups = requestList.querySelectorAll('.page-group');
     pageGroups.forEach(group => {
         const pageContent = group.querySelector('.page-content');
-        const hasVisibleRequests = Array.from(pageContent.querySelectorAll(':scope > .request-item')).some(item => item.style.display !== 'none');
+        const hasVisibleFirstParty = Array.from(pageContent.querySelectorAll('.path-group .request-item')).some(item => item.style.display !== 'none');
         const hasVisibleDomains = Array.from(pageContent.querySelectorAll('.domain-group')).some(domain => domain.style.display !== 'none');
         const hasVisibleAttackSurface = pageContent.querySelector('.attack-surface-category') !== null;
 
-        group.style.display = (hasVisibleRequests || hasVisibleDomains || hasVisibleAttackSurface) ? 'block' : 'none';
+        group.style.display = (hasVisibleFirstParty || hasVisibleDomains || hasVisibleAttackSurface) ? 'block' : 'none';
 
         // Auto-expand page groups when filtering (unless manually collapsed)
-        if ((hasVisibleRequests || hasVisibleDomains || hasVisibleAttackSurface) && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
+        if ((hasVisibleFirstParty || hasVisibleDomains || hasVisibleAttackSurface) && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
+            group.classList.add('expanded');
             const toggleBtn = group.querySelector('.page-toggle-btn');
-            if (pageContent) pageContent.style.display = 'block';
             if (toggleBtn) toggleBtn.classList.add('expanded');
         }
     });

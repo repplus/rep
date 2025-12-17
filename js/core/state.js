@@ -30,7 +30,19 @@ export const state = {
     // Attack Surface Grouping (per-domain)
     attackSurfaceCategories: {}, // { requestIndex: { category, confidence, reasoning, icon } }
     domainsWithAttackSurface: new Set(), // Track which domains have been analyzed
-    isAnalyzingAttackSurface: false
+    isAnalyzingAttackSurface: false,
+    // Request blocking/stepping
+    blockRequests: false,
+    blockedQueue: [],
+    // postMessage Monitor
+    pmMonitor: {
+        enabled: false,
+        listeners: [],
+        messages: [],
+        searchTerm: '',
+        highlightTerms: ['token','auth','login','session','redirect','location','html','innerHTML','eval','action','event','success','challenge','retry'],
+        selectedListenerId: null
+    }
 };
 
 export function addRequest(request) {

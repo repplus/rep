@@ -1,5 +1,6 @@
 // Main Entry Point
 import { state, addRequest } from './core/state.js';
+import { events } from './core/events.js';
 import {
     initUI, elements, renderRequestItem, filterRequests, updateHistoryButtons,
     clearAllRequestsUI, setupResizeHandle, setupSidebarResize, setupContextMenu,
@@ -51,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Setup Network Listener (Current Tab)
-    setupNetworkListener((request) => {
+    const processCapturedRequest = (request) => {
         // Auto-star if group is starred
         const pageHostname = getHostname(request.pageUrl || request.request.url);
         const requestHostname = getHostname(request.request.url);
@@ -69,6 +70,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const index = addRequest(request);
         renderRequestItem(request, index);
+    };
+
+    setupNetworkListener((request) => {
+        if (state.blockRequests) {
+            const hasActiveList = state.requests.length > 0;
+            const hasQueued = state.blockedQueue.length > 0;
+            if (!hasActiveList && !hasQueued) {
+                // Show the first blocked request immediately so the user can step through
+                processCapturedRequest(request);
+            } else {
+                state.blockedQueue.push(request);
+                updateBlockButtons();
+            }
+            return;
+        }
+        processCapturedRequest(request);
     });
 
     // Setup UI Components
@@ -78,6 +95,109 @@ document.addEventListener('DOMContentLoaded', () => {
     setupUndoRedo();
 
     // Event Listeners
+
+    // Block/Step controls
+    const blockBtn = document.getElementById('block-toggle-btn');
+    const forwardBtn = document.getElementById('forward-btn');
+    const forwardMenu = document.getElementById('forward-menu');
+    const forwardMenuItems = forwardMenu ? Array.from(forwardMenu.querySelectorAll('.forward-menu-item')) : [];
+    let forwardMode = 'next';
+
+    function updateBlockButtons() {
+        if (blockBtn) {
+            blockBtn.classList.toggle('active', state.blockRequests);
+            const isBlocking = state.blockRequests;
+            blockBtn.title = isBlocking ? 'Unblock incoming requests' : 'Block incoming requests';
+            blockBtn.innerHTML = isBlocking
+                ? '<svg class="block-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
+                : '<svg class="block-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>';
+        }
+        const count = state.blockedQueue.length;
+        if (forwardBtn) {
+            const mode = forwardMode;
+            const label = mode === 'all' ? 'Forward all' : 'Forward';
+            const labelEl = forwardBtn.querySelector('.forward-label');
+            if (labelEl) {
+                labelEl.textContent = `${label} (${count})`;
+            } else {
+                forwardBtn.textContent = `${label} (${count})`;
+            }
+            forwardBtn.disabled = count === 0;
+        }
+    }
+
+    if (blockBtn) {
+        blockBtn.addEventListener('click', () => {
+            state.blockRequests = !state.blockRequests;
+            if (state.blockRequests) {
+                // Fresh blocking session: clear current list and queue
+                clearAllRequestsUI();
+                state.blockedQueue = [];
+            }
+            // If unblocking, flush all queued
+            if (!state.blockRequests && state.blockedQueue.length > 0) {
+                const queued = [...state.blockedQueue];
+                state.blockedQueue = [];
+                queued.forEach(req => processCapturedRequest(req));
+            }
+            updateBlockButtons();
+        });
+    }
+
+    if (forwardBtn) {
+        forwardBtn.addEventListener('click', (e) => {
+            if (state.blockedQueue.length === 0) return;
+
+            const caret = forwardBtn.querySelector('.forward-caret');
+            const rect = forwardBtn.getBoundingClientRect();
+            const clickInCaretZone = caret && caret.contains(e.target);
+            const clickOnRightEdge = e.clientX >= rect.right - 28; // generous hit area on the right side
+
+            // If click was on caret or right edge, toggle menu
+            if (clickInCaretZone || clickOnRightEdge) {
+                if (forwardMenu) forwardMenu.classList.toggle('open');
+                return;
+            }
+
+            const mode = forwardMode;
+            if (mode === 'all') {
+                const queued = [...state.blockedQueue];
+                state.blockedQueue = [];
+                queued.forEach(req => processCapturedRequest(req));
+            } else {
+                const next = state.blockedQueue.shift();
+                processCapturedRequest(next);
+            }
+            updateBlockButtons();
+        });
+    }
+
+    if (forwardMenu && forwardMenuItems.length) {
+        const setMode = (mode) => {
+            forwardMode = mode;
+            forwardMenuItems.forEach(item => item.classList.toggle('active', item.dataset.mode === mode));
+            updateBlockButtons();
+            forwardMenu.classList.remove('open');
+        };
+
+        forwardMenuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setMode(item.dataset.mode || 'next');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (forwardMenu.contains(e.target) || forwardBtn?.contains(e.target)) return;
+            forwardMenu.classList.remove('open');
+        });
+    }
+
+    // React to global events that change queue/counters
+    events.on('block-queue:updated', updateBlockButtons);
+    events.on('ui:clear-all', updateBlockButtons);
+    // initialize labels
+    updateBlockButtons();
 
     // Send Request
     if (elements.sendBtn) {
@@ -103,9 +223,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.querySelectorAll('.filter-btn:not(#color-filter-btn)').forEach(btn => {
+    // Method filter dropdown
+    const methodFilterBtn = document.getElementById('method-filter-btn');
+    const methodFilterLabel = document.getElementById('method-filter-label');
+    const methodFilterMenu = document.getElementById('method-filter-menu');
+    const methodItems = methodFilterMenu ? Array.from(methodFilterMenu.querySelectorAll('.method-filter-item')) : [];
+
+    const setMethodFilter = (value) => {
+        const normalized = value === 'all' ? 'all' : (value || 'all').toUpperCase();
+        state.currentFilter = normalized;
+        if (methodItems) {
+            methodItems.forEach(item => item.classList.toggle('active', item.dataset.filter === normalized));
+        }
+        if (methodFilterLabel) {
+            methodFilterLabel.textContent = normalized === 'all' ? 'All' : normalized;
+        }
+        // Visual cue on the pill when filter is not "All"
+        if (methodFilterBtn) {
+            methodFilterBtn.classList.toggle('active', normalized !== 'all');
+        }
+        filterRequests();
+    };
+
+    if (methodFilterBtn && methodFilterMenu) {
+        methodFilterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            methodFilterMenu.classList.toggle('open');
+        });
+
+        methodItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const val = item.dataset.filter || 'all';
+                setMethodFilter(val);
+                methodFilterMenu.classList.remove('open');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (methodFilterMenu.contains(e.target) || methodFilterBtn.contains(e.target)) return;
+            methodFilterMenu.classList.remove('open');
+        });
+
+        // Initialize label/active state
+        setMethodFilter(state.currentFilter || 'all');
+    }
+
+    // Other filter buttons (e.g., starred)
+    document.querySelectorAll('.filter-btn[data-filter]:not(#color-filter-btn)').forEach(btn => {
+        if (btn.id === 'method-filter-btn') return;
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn:not(#color-filter-btn)').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.filter-btn[data-filter]:not(#color-filter-btn)').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.currentFilter = btn.dataset.filter;
             filterRequests();

@@ -50,6 +50,7 @@ export function toggleAllObjects() {
 
 export function clearAllRequestsUI() {
     clearRequests();
+    state.blockedQueue = [];
     const requestList = document.getElementById('request-list');
     if (requestList) {
         requestList.innerHTML = '';
@@ -62,6 +63,7 @@ export function clearAllRequestsUI() {
 
     // Emit event to clear UI elements
     events.emit('ui:clear-all'); // Using string literal since EVENT_NAMES import would add coupling
+    events.emit('block-queue:updated');
     updateHistoryButtons();
 }
 

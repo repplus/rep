@@ -201,6 +201,167 @@ body.theme-transitioning img {
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
+    align-items: center;
+}
+
+.filters .filter-btn,
+.filters .icon-btn {
+    height: 26px;
+    min-height: 26px;
+    padding: 4px 8px;
+    box-sizing: border-box;
+}
+
+.filters .icon-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-color);
+}
+
+.block-toggle-btn {
+    border: 1px solid var(--border-color) !important;
+    background: var(--input-bg) !important;
+    padding: 4px 6px !important;
+    border-radius: 6px;
+    height: 26px;
+    min-height: 26px;
+    width: 32px;
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.block-toggle-btn .block-icon {
+    opacity: 0.9;
+}
+
+.block-toggle-btn.active {
+    background: rgba(138, 180, 248, 0.12) !important;
+    border-color: var(--accent-color) !important;
+    color: var(--accent-color) !important;
+}
+
+.method-filter {
+    position: relative;
+    display: inline-flex;
+    height: 26px;
+}
+
+.method-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 10px;
+}
+
+.method-filter-btn .method-caret {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.method-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-width: 120px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    display: none;
+    z-index: 40;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.method-filter-menu.open {
+    display: block;
+}
+
+.method-filter-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.method-filter-item:hover {
+    background: var(--hover-bg);
+}
+
+.method-filter-item.active {
+    color: var(--accent-color);
+}
+
+.forward-combo {
+    position: relative;
+    display: inline-flex;
+    height: 26px;
+}
+
+.forward-combo-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 26px;
+    min-height: 26px;
+    line-height: 1;
+}
+
+.forward-combo-btn .forward-caret {
+    font-size: 11px;
+    border-left: 1px solid var(--border-color);
+    padding: 0 8px;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+}
+
+.forward-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-width: 140px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    display: none;
+    z-index: 30;
+}
+
+.forward-menu.open {
+    display: block;
+}
+
+.forward-menu-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.forward-menu-item:hover {
+    background: var(--hover-bg);
+}
+
+.forward-menu-item.active {
+    color: var(--accent-color);
 }
 
 .filter-btn {
@@ -2459,6 +2620,59 @@ pre {
 /* First-party requests directly under page */
 .page-content>.request-item {
     padding-left: 24px;
+}
+
+.path-group {
+    border-bottom: 1px solid var(--border-color);
+    margin-left: 12px;
+}
+
+.path-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.path-header:hover {
+    background-color: var(--hover-bg);
+}
+
+.path-header .group-toggle {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    opacity: 0.8;
+}
+
+.path-icon {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+.path-name {
+    font-weight: 600;
+}
+
+.path-count {
+    font-size: 11px;
+    color: #9aa0a6;
+    margin-left: 6px;
+}
+
+.path-content {
+    display: block;
+}
+
+.path-group:not(.expanded) .path-content {
+    display: none;
+}
+
+.path-content .request-item {
+    padding-left: 32px;
 }
 
 /* Group Star Button */

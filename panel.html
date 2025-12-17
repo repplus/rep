@@ -71,13 +71,25 @@
                     <input type="file" id="import-file" accept=".json" style="display: none;">
                 </div>
                 <div class="filters">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="GET">GET</button>
-                    <button class="filter-btn" data-filter="POST">POST</button>
-                    <button class="filter-btn" data-filter="PUT">PUT</button>
-                    <button class="filter-btn" data-filter="DELETE">DELETE</button>
-                    <button class="filter-btn" data-filter="XHR"
-                        title="Show only XHR/Fetch requests (exclude images, fonts, text files)">XHR</button>
+                    <div class="method-filter" id="method-filter">
+                        <button id="method-filter-btn" class="filter-btn method-filter-btn" title="Filter by method">
+                            <span id="method-filter-label">All</span>
+                            <span class="method-caret">▾</span>
+                        </button>
+                        <div id="method-filter-menu" class="method-filter-menu">
+                            <div class="method-filter-item" data-filter="all">All</div>
+                            <div class="method-filter-item" data-filter="GET">GET</div>
+                            <div class="method-filter-item" data-filter="POST">POST</div>
+                            <div class="method-filter-item" data-filter="PUT">PUT</div>
+                            <div class="method-filter-item" data-filter="DELETE">DELETE</div>
+                            <div class="method-filter-item" data-filter="PATCH">PATCH</div>
+                            <div class="method-filter-item" data-filter="HEAD">HEAD</div>
+                            <div class="method-filter-item" data-filter="OPTIONS">OPTIONS</div>
+                            <div class="method-filter-item" data-filter="TRACE">TRACE</div>
+                            <div class="method-filter-item" data-filter="XHR"
+                                title="Show only XHR/Fetch requests (exclude images, fonts, text files)">XHR/Fetch</div>
+                        </div>
+                    </div>
                     <button id="color-filter-btn" class="filter-btn" title="Filter by Color">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                             <path
@@ -85,6 +97,21 @@
                         </svg>
                     </button>
                     <button class="filter-btn" data-filter="starred" title="Show Starred">★</button>
+                    <div class="divider-vertical"
+                        style="width: 1px; height: 20px; background: var(--border-color); margin: 0 4px;"></div>
+                    <button id="block-toggle-btn" class="icon-btn block-toggle-btn" title="Block incoming requests" aria-label="Block incoming requests">
+                        <svg class="block-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>
+                    </button>
+                    <div class="forward-combo" id="forward-combo">
+                        <button id="forward-btn" class="icon-btn forward-combo-btn" title="Forward blocked requests">
+                            <span class="forward-label">Forward (0)</span>
+                            <span class="forward-caret" data-caret>▾</span>
+                        </button>
+                        <div id="forward-menu" class="forward-menu">
+                            <div class="forward-menu-item active" data-mode="next">Forward next</div>
+                            <div class="forward-menu-item" data-mode="all">Forward all</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
