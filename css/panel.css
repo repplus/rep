@@ -1255,6 +1255,78 @@ tr.selected {
     transition: width 0.4s ease-out;
 }
 
+/* Scan button disabled state - no animation */
+#start-scan-btn:disabled {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Scan Steps Checklist */
+.scan-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--sidebar-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.scan-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-color);
+    opacity: 0.5;
+    transition: all 0.3s;
+}
+
+.scan-step.active {
+    opacity: 1;
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.scan-step.completed {
+    opacity: 1;
+    color: var(--success-color);
+}
+
+.scan-step .step-icon {
+    display: inline-block;
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.scan-step.active .step-icon {
+    animation: spin 1s linear infinite;
+}
+
+.scan-step.completed .step-icon {
+    color: var(--success-color);
+}
+
+.scan-step .step-text {
+    flex: 1;
+}
+
+.light-theme .scan-steps {
+    background: #f8f9fa;
+    border-color: #dadce0;
+}
+
+.light-theme .scan-step.active {
+    color: #1967d2;
+}
+
+.light-theme .scan-step.completed {
+    color: #137333;
+}
+
 #bulk-progress-text {
     font-size: 11px;
     color: #9aa0a6;

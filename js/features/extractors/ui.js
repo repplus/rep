@@ -247,6 +247,7 @@ export function initExtractorUI() {
     const extractorProgress = document.getElementById('extractor-progress');
     const extractorProgressBar = document.getElementById('extractor-progress-bar');
     const extractorProgressText = document.getElementById('extractor-progress-text');
+    const scanSteps = document.getElementById('scan-steps');
     const startScanBtn = document.getElementById('start-scan-btn');
 
     // Results containers
@@ -414,13 +415,31 @@ export function initExtractorUI() {
     // Start Scan
     if (startScanBtn) {
         startScanBtn.addEventListener('click', async () => {
+            // Immediate visual feedback - show progress and disable button
             extractorProgress.style.display = 'block';
+            if (scanSteps) scanSteps.style.display = 'block';
             extractorProgressBar.style.setProperty('--progress', '0%');
-            extractorProgressText.textContent = 'Scanning JS files...';
+            extractorProgressText.textContent = 'Initializing scan...';
             startScanBtn.disabled = true;
-            secretsResults.innerHTML = '';
-            endpointsResults.innerHTML = '';
-            if (parametersResults) parametersResults.innerHTML = '';
+            const originalButtonText = startScanBtn.textContent || startScanBtn.innerText || 'Start Scan';
+            startScanBtn.setAttribute('data-original-text', originalButtonText);
+            startScanBtn.textContent = 'Scanning...';
+            startScanBtn.style.opacity = '0.6';
+            startScanBtn.style.cursor = 'not-allowed';
+            
+            // Reset all step indicators
+            if (scanSteps) {
+                scanSteps.querySelectorAll('.scan-step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                    const icon = step.querySelector('.step-icon');
+                    if (icon) icon.textContent = '○';
+                });
+            }
+            
+            // Clear previous results
+            secretsResults.innerHTML = '<div class="empty-state">Scanning in progress...</div>';
+            endpointsResults.innerHTML = '<div class="empty-state">Scanning in progress...</div>';
+            if (parametersResults) parametersResults.innerHTML = '<div class="empty-state">Scanning in progress...</div>';
             currentSecretResults = [];
             currentEndpointResults = [];
             currentParameterResults = [];
@@ -434,6 +453,31 @@ export function initExtractorUI() {
             currentEndpointsPage = 1;
             currentParametersPage = 1;
 
+            // Timeout handling
+            const SCAN_TIMEOUT = 120000; // 2 minutes timeout
+            let scanTimeoutId = null;
+            let isScanComplete = false;
+            let scanAborted = false;
+
+            const abortScan = () => {
+                scanAborted = true;
+                extractorProgressText.textContent = 'Scan timed out or was interrupted. Some results may be incomplete.';
+                extractorProgressBar.style.setProperty('--progress', '100%');
+                startScanBtn.disabled = false;
+                const originalText = startScanBtn.getAttribute('data-original-text') || 'Start Scan';
+                startScanBtn.textContent = originalText;
+                startScanBtn.style.opacity = '1';
+                startScanBtn.style.cursor = 'pointer';
+            };
+
+            // Set timeout
+            scanTimeoutId = setTimeout(() => {
+                if (!isScanComplete) {
+                    console.warn('Scan timeout reached');
+                    abortScan();
+                }
+            }, SCAN_TIMEOUT);
+
             try {
                 // Lazy load scanners
                 const [secretScanner, endpointExtractor, parameterExtractor, stateModule] = await Promise.all([
@@ -446,7 +490,14 @@ export function initExtractorUI() {
                 const { state } = stateModule;
                 
                 if (!state || !state.requests || state.requests.length === 0) {
+                    clearTimeout(scanTimeoutId);
+                    isScanComplete = true;
                     extractorProgressText.textContent = 'No requests captured yet. Please navigate to a website first.';
+                    startScanBtn.disabled = false;
+                    const originalText = startScanBtn.getAttribute('data-original-text') || 'Start Scan';
+                    startScanBtn.textContent = originalText;
+                    startScanBtn.style.opacity = '1';
+                    startScanBtn.style.cursor = 'pointer';
                     setTimeout(() => {
                         extractorProgress.style.display = 'none';
                     }, 3000);
@@ -465,12 +516,23 @@ export function initExtractorUI() {
                 });
 
                 if (jsRequests.length === 0) {
+                    clearTimeout(scanTimeoutId);
+                    isScanComplete = true;
                     extractorProgressText.textContent = 'No JavaScript files found in captured requests.';
+                    startScanBtn.disabled = false;
+                    const originalText = startScanBtn.getAttribute('data-original-text') || 'Start Scan';
+                    startScanBtn.textContent = originalText;
+                    startScanBtn.style.opacity = '1';
+                    startScanBtn.style.cursor = 'pointer';
                     setTimeout(() => {
                         extractorProgress.style.display = 'none';
                     }, 3000);
                     return;
                 }
+
+                // Update progress - show we're starting
+                extractorProgressText.textContent = `Found ${jsRequests.length} JavaScript file${jsRequests.length !== 1 ? 's' : ''} to scan...`;
+                extractorProgressBar.style.setProperty('--progress', '5%');
 
                 // Track progress state
                 let filesProcessed = 0;
@@ -479,6 +541,27 @@ export function initExtractorUI() {
                 const UPDATE_INTERVAL = 50; // Update UI at most every 50ms for smooth animation
                 const scanStartTime = Date.now();
                 const MIN_SCAN_DURATION = 500; // Minimum scan duration to show animation (500ms)
+                const MIN_PHASE_DISPLAY = 800; // Minimum 800ms per phase to ensure visibility
+                
+                // Helper function to update step indicator
+                const updateStep = (stepName, status) => {
+                    if (!scanSteps) return;
+                    const step = scanSteps.querySelector(`[data-step="${stepName}"]`);
+                    if (!step) return;
+                    
+                    const icon = step.querySelector('.step-icon');
+                    step.classList.remove('active', 'completed');
+                    
+                    if (status === 'active') {
+                        step.classList.add('active');
+                        if (icon) icon.textContent = '⟳';
+                    } else if (status === 'completed') {
+                        step.classList.add('completed');
+                        if (icon) icon.textContent = '✓';
+                    } else {
+                        if (icon) icon.textContent = '○';
+                    }
+                };
                 
                 // Helper function to update progress bar with throttling
                 const updateProgressBar = (processed, total, foundCount, isComplete = false) => {
@@ -495,20 +578,36 @@ export function initExtractorUI() {
                         // Set CSS variable for progress (the ::after pseudo-element uses this)
                         extractorProgressBar.style.setProperty('--progress', `${percent}%`);
                         if (isComplete) {
-                            extractorProgressText.textContent = `Scan complete! Found ${foundCount} secret${foundCount !== 1 ? 's' : ''}`;
-                    } else {
+                            extractorProgressText.textContent = `Scanning ${processed}/${total} files... Found ${foundCount} secret${foundCount !== 1 ? 's' : ''}`;
+                        } else {
                             extractorProgressText.textContent = `Scanning ${processed}/${total} files... Found ${foundCount} secret${foundCount !== 1 ? 's' : ''}`;
                         }
                     });
                 };
                 
+                // Check if scan was aborted
+                if (scanAborted) return;
+
+                // Phase 1: Scan for Secrets
+                updateStep('secrets', 'active');
+                extractorProgressText.textContent = 'Scanning for secrets...';
+                extractorProgressBar.style.setProperty('--progress', '10%');
+                
+                // Ensure minimum display time for this phase
+                const phase1StartTime = Date.now();
+                
                 // Scan for Secrets using async function that includes Kingfisher rules
                 // onSecretFound callback will render results in real-time as they're discovered
                 const secrets = await secretScanner.scanForSecrets(jsRequests, (processed, total) => {
+                    if (scanAborted) return;
                     filesProcessed = processed;
                     const foundCount = currentSecretResults.length;
-                    updateProgressBar(processed, total, foundCount);
+                    // Use actual file counts to avoid fractional progress like "32.5/100 files"
+                    const percent = Math.round((processed / total) * 33); // 0-33% for phase 1
+                    extractorProgressBar.style.setProperty('--progress', `${percent}%`);
+                    extractorProgressText.textContent = `Scanning secrets: ${processed}/${total} files... Found ${foundCount} secret${foundCount !== 1 ? 's' : ''}`;
                 }, (secret) => {
+                    if (scanAborted) return;
                     // Called immediately when a secret is found
                     currentSecretResults.push(secret);
                     
@@ -520,30 +619,36 @@ export function initExtractorUI() {
                     
                     // Re-render with updated results (respecting filters)
                     renderSecretResults(filtered);
-                    
-                    // Update progress text to show both file progress and secret count
-                    const foundCount = currentSecretResults.length;
-                    updateProgressBar(filesProcessed, totalFiles, foundCount);
                 });
                 
-                // Final progress update - show 100% completion
-                updateProgressBar(totalFiles, totalFiles, currentSecretResults.length, true);
+                // Check if scan was aborted
+                if (scanAborted) return;
+                
+                // Mark secrets step as completed
+                updateStep('secrets', 'completed');
+                
+                // Ensure minimum display time
+                const phase1Duration = Date.now() - phase1StartTime;
+                if (phase1Duration < MIN_PHASE_DISPLAY) {
+                    await new Promise(resolve => setTimeout(resolve, MIN_PHASE_DISPLAY - phase1Duration));
+                }
                 
                 // Final results are already in currentSecretResults from the callback
                 // Apply final filter and render
                 const finalFiltered = filterByDomainAndSearch(currentSecretResults);
                 renderSecretResults(finalFiltered);
-                
-                // Ensure minimum scan duration for visibility (especially for fast scans)
-                const scanDuration = Date.now() - scanStartTime;
-                const remainingTime = Math.max(0, MIN_SCAN_DURATION - scanDuration);
-                
-                // Wait to ensure users can see the 100% completion state
-                // This is especially important for fast scans
-                await new Promise(resolve => setTimeout(resolve, remainingTime + 800));
 
-                            // Extract Endpoints
+                // Phase 2: Extract Endpoints
+                updateStep('endpoints', 'active');
+                extractorProgressText.textContent = 'Extracting endpoints...';
+                extractorProgressBar.style.setProperty('--progress', '34%');
+                
+                const phase2StartTime = Date.now();
+                
+                let endpointFilesProcessed = 0;
                 for (const req of jsRequests) {
+                    if (scanAborted) break;
+                    
                     try {
                         // Use stored responseBody if available, otherwise try getContent
                         let content = null;
@@ -564,6 +669,7 @@ export function initExtractorUI() {
                             });
                         } else {
                             console.warn(`Cannot get content for endpoints from ${req.request.url}: no responseBody or getContent method`);
+                            endpointFilesProcessed++;
                             continue;
                         }
                         
@@ -571,14 +677,95 @@ export function initExtractorUI() {
                             const endpoints = endpointExtractor.extractEndpoints(content, req.request.url);
                             currentEndpointResults.push(...endpoints);
                             
-                            // Extract parameters from the same content
-                            const parameters = parameterExtractor.extractParameters(content, req.request.url);
-                            currentParameterResults.push(...parameters);
+                            // Update progress for endpoints phase (34-67%)
+                            endpointFilesProcessed++;
+                            const progressPercent = 34 + Math.round((endpointFilesProcessed / totalFiles) * 33);
+                            extractorProgressBar.style.setProperty('--progress', `${progressPercent}%`);
+                            extractorProgressText.textContent = `Extracting endpoints: ${endpointFilesProcessed}/${totalFiles} files...`;
+                        } else {
+                            endpointFilesProcessed++;
                         }
                     } catch (e) {
                         console.error('Error reading file for endpoints:', req.request.url, e);
+                        endpointFilesProcessed++;
                     }
                 }
+                
+                // Check if scan was aborted
+                if (scanAborted) return;
+                
+                updateStep('endpoints', 'completed');
+                
+                // Ensure minimum display time
+                const phase2Duration = Date.now() - phase2StartTime;
+                if (phase2Duration < MIN_PHASE_DISPLAY) {
+                    await new Promise(resolve => setTimeout(resolve, MIN_PHASE_DISPLAY - phase2Duration));
+                }
+                
+                // Phase 3: Extract Parameters
+                updateStep('parameters', 'active');
+                extractorProgressText.textContent = 'Extracting parameters...';
+                extractorProgressBar.style.setProperty('--progress', '67%');
+                
+                const phase3StartTime = Date.now();
+                
+                let paramFilesProcessed = 0;
+                for (const req of jsRequests) {
+                    if (scanAborted) break;
+                    
+                    try {
+                        let content = null;
+                        
+                        if (req.responseBody !== undefined) {
+                            content = req.responseBody || '';
+                        } else if (typeof req.getContent === 'function') {
+                            content = await new Promise((resolve, reject) => {
+                                req.getContent((body, encoding) => {
+                                    if (chrome.runtime.lastError) {
+                                        reject(new Error(chrome.runtime.lastError.message));
+                                    } else {
+                                        resolve(body || '');
+                                    }
+                                });
+                            });
+                        } else {
+                            paramFilesProcessed++;
+                            continue;
+                        }
+                        
+                        if (content) {
+                            const parameters = parameterExtractor.extractParameters(content, req.request.url);
+                            currentParameterResults.push(...parameters);
+                            
+                            // Update progress for parameters phase (67-90%)
+                            paramFilesProcessed++;
+                            const progressPercent = 67 + Math.round((paramFilesProcessed / totalFiles) * 23);
+                            extractorProgressBar.style.setProperty('--progress', `${progressPercent}%`);
+                            extractorProgressText.textContent = `Extracting parameters: ${paramFilesProcessed}/${totalFiles} files...`;
+                        } else {
+                            paramFilesProcessed++;
+                        }
+                    } catch (e) {
+                        console.error('Error reading file for parameters:', req.request.url, e);
+                        paramFilesProcessed++;
+                    }
+                }
+                
+                // Check if scan was aborted
+                if (scanAborted) return;
+                
+                updateStep('parameters', 'completed');
+                
+                // Ensure minimum display time
+                const phase3Duration = Date.now() - phase3StartTime;
+                if (phase3Duration < MIN_PHASE_DISPLAY) {
+                    await new Promise(resolve => setTimeout(resolve, MIN_PHASE_DISPLAY - phase3Duration));
+                }
+                
+                // Phase 4: Processing results
+                updateStep('processing', 'active');
+                extractorProgressText.textContent = 'Processing and deduplicating results...';
+                extractorProgressBar.style.setProperty('--progress', '90%');
 
                 // Deduplicate endpoints across all requests (same file fetched multiple times)
                 const seenEndpointKeys = new Set();
@@ -640,17 +827,42 @@ export function initExtractorUI() {
 
                 extractorSearchContainer.style.display = (currentSecretResults.length > 0 || currentEndpointResults.length > 0 || currentParameterResults.length > 0) ? 'block' : 'none';
 
+                // Mark processing as completed
+                updateStep('processing', 'completed');
+                
+                // Complete scan
+                clearTimeout(scanTimeoutId);
+                isScanComplete = true;
+                
+                const totalFound = currentSecretResults.length + currentEndpointResults.length + currentParameterResults.length;
+                extractorProgressText.textContent = `Scan complete! Found ${currentSecretResults.length} secret${currentSecretResults.length !== 1 ? 's' : ''}, ${currentEndpointResults.length} endpoint${currentEndpointResults.length !== 1 ? 's' : ''}, ${currentParameterResults.length} parameter${currentParameterResults.length !== 1 ? 's' : ''}`;
+                extractorProgressBar.style.setProperty('--progress', '100%');
+                
+                // Wait a moment to show completion
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
             } catch (e) {
+                clearTimeout(scanTimeoutId);
+                isScanComplete = true;
                 console.error('Scan failed:', e);
                 console.error('Error stack:', e.stack);
                 extractorProgressText.textContent = `Scan failed: ${e.message}. Check console for details.`;
                 extractorProgress.style.display = 'block';
+                extractorProgressBar.style.setProperty('--progress', '100%');
             } finally {
                 startScanBtn.disabled = false;
-                // Hide progress bar after a short delay (we already waited 800ms for completion animation)
+                const originalText = startScanBtn.getAttribute('data-original-text') || 'Start Scan';
+                startScanBtn.textContent = originalText;
+                startScanBtn.style.opacity = '1';
+                startScanBtn.style.cursor = 'pointer';
+                
+                // Hide progress bar and steps after a delay
                 setTimeout(() => {
-                    extractorProgress.style.display = 'none';
-                }, 500);
+                    if (isScanComplete) {
+                        extractorProgress.style.display = 'none';
+                        if (scanSteps) scanSteps.style.display = 'none';
+                    }
+                }, 2000);
             }
         });
     }
@@ -1740,3 +1952,4 @@ export function initExtractorUI() {
         container.appendChild(nextBtn);
     }
 }
+

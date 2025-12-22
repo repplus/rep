@@ -664,6 +664,24 @@
                         <div class="progress-bar" id="extractor-progress-bar"></div>
                         <span id="extractor-progress-text">Scanning...</span>
                     </div>
+                    <div id="scan-steps" class="scan-steps" style="margin-top: 12px; display: none;">
+                        <div class="scan-step" data-step="secrets">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Scanning for secrets</span>
+                        </div>
+                        <div class="scan-step" data-step="endpoints">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Extracting endpoints</span>
+                        </div>
+                        <div class="scan-step" data-step="parameters">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Extracting parameters</span>
+                        </div>
+                        <div class="scan-step" data-step="processing">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Processing results</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Secrets Tab Content -->
