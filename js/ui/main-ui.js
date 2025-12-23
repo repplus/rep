@@ -2,9 +2,7 @@
 import { state } from '../core/state.js';
 import { getHostname, highlightHTTP } from '../core/utils/network.js';
 import { events, EVENT_NAMES } from '../core/events.js';
-import { filterRequests } from './request-list.js';
 import { selectRequest, switchRequestView, switchResponseView, toggleLayout, initPreviewControls, updatePreview } from './request-editor.js';
-import { updateHistoryButtons } from './ui-utils.js';
 import { generateHexView } from './hex-view.js';
 import { generateJsonView } from './json-view.js';
 
@@ -44,73 +42,35 @@ export function initUI() {
     elements.colorFilterBtn = document.getElementById('color-filter-btn');
     elements.toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
     elements.showSidebarBtn = document.getElementById('show-sidebar-btn');
-
-    // Color Filter Logic
-    if (elements.colorFilterBtn) {
-        elements.colorFilterBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Close any existing popovers
-            document.querySelectorAll('.color-picker-popover').forEach(el => el.remove());
-
-            const popover = document.createElement('div');
-            popover.className = 'color-picker-popover';
-            popover.style.top = '100%';
-            popover.style.left = '0'; // Align left
-            popover.style.right = 'auto';
-
-            const colors = ['all', 'red', 'green', 'blue', 'yellow', 'purple', 'orange'];
-            const colorValues = {
-                'all': 'transparent',
-                'red': '#ff6b6b', 'green': '#51cf66', 'blue': '#4dabf7',
-                'yellow': '#ffd43b', 'purple': '#b197fc', 'orange': '#ff922b'
-            };
-
-            colors.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = `color-swatch ${color === 'all' ? 'none' : ''}`;
-                if (color !== 'all') swatch.style.backgroundColor = colorValues[color];
-                swatch.title = color === 'all' ? 'Show All' : color.charAt(0).toUpperCase() + color.slice(1);
-
-                // Highlight active filter
-                if (state.currentColorFilter === color) {
-                    swatch.style.border = '2px solid var(--accent-color)';
-                    swatch.style.transform = 'scale(1.1)';
-                }
-
-                swatch.onclick = (e) => {
-                    e.stopPropagation();
-                    state.currentColorFilter = color;
-
-                    // Update button style
-                    if (color === 'all') {
-                        elements.colorFilterBtn.classList.remove('active');
-                        elements.colorFilterBtn.style.color = '';
-                    } else {
-                        elements.colorFilterBtn.classList.add('active');
-                        elements.colorFilterBtn.style.color = colorValues[color];
-                    }
-
-                    filterRequests();
-                    popover.remove();
-                };
-                popover.appendChild(swatch);
-            });
-
-            elements.colorFilterBtn.appendChild(popover);
-            elements.colorFilterBtn.style.position = 'relative'; // Ensure popover positions correctly
-
-            // Close on click outside
-            const closeHandler = (e) => {
-                if (!popover.contains(e.target) && e.target !== elements.colorFilterBtn) {
-                    popover.remove();
-                    document.removeEventListener('click', closeHandler);
-                }
-            };
-            setTimeout(() => document.addEventListener('click', closeHandler), 0);
-        });
-    }
+    
+    // Filter elements
+    elements.methodFilterBtn = document.getElementById('method-filter-btn');
+    elements.methodFilterLabel = document.getElementById('method-filter-label');
+    elements.methodFilterMenu = document.getElementById('method-filter-menu');
+    elements.methodSelectAllBtn = document.getElementById('method-select-all');
+    elements.methodClearAllBtn = document.getElementById('method-clear-all');
+    
+    // Block controls
+    elements.blockToggleBtn = document.getElementById('block-toggle-btn');
+    elements.forwardBtn = document.getElementById('forward-btn');
+    elements.forwardMenu = document.getElementById('forward-menu');
+    
+    // Request editor elements
+    elements.rawRequestTextarea = document.getElementById('raw-request-textarea');
+    elements.reqViewPretty = document.getElementById('req-view-pretty');
+    elements.reqViewRaw = document.getElementById('req-view-raw');
+    elements.reqViewHex = document.getElementById('req-view-hex');
+    elements.reqHexDisplay = document.getElementById('req-hex-display');
+    elements.resViewPreview = document.getElementById('res-view-preview');
+    elements.responsePreviewIframe = document.getElementById('response-preview-iframe');
+    elements.previewAllowScriptsCheckbox = document.getElementById('preview-allow-scripts');
+    
+    // Banner elements
+    elements.promoBanner = document.getElementById('promo-banner');
+    elements.closeBannerBtn = document.getElementById('close-banner');
 
     // Function to analyze attack surface for a specific domain
+    // Note: This is kept here as it's a window function used by request-list.js
     window.analyzeDomainAttackSurface = async function (domain, groupElement) {
         if (state.isAnalyzingAttackSurface) return;
 
@@ -147,7 +107,7 @@ export function initUI() {
                 aiBtn.title = 'Show Normal View';
                 aiBtn.textContent = '📋';
             }
-            filterRequests();
+            events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
             return;
         }
 
@@ -222,7 +182,7 @@ export function initUI() {
                     }
 
                     // Re-render to show attack surface view for this domain
-                    filterRequests();
+                    events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
                 }
             });
         } catch (error) {
@@ -237,98 +197,6 @@ export function initUI() {
             state.isAnalyzingAttackSurface = false;
         }
     };
-
-    // View Tabs
-    document.querySelectorAll('.view-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            const view = tab.dataset.view;
-            const pane = tab.dataset.pane;
-            if (pane === 'request') {
-                switchRequestView(view);
-            } else {
-                switchResponseView(view);
-            }
-        });
-    });
-
-    // Sync Raw Request Editor
-    const rawReqTextarea = document.getElementById('raw-request-textarea');
-    if (rawReqTextarea) {
-        rawReqTextarea.addEventListener('input', () => {
-            elements.rawRequestInput.innerText = rawReqTextarea.value;
-            // Trigger highlight update if needed, or just keep sync
-        });
-
-        // Hotkey: Ctrl/Cmd + Enter in raw textarea → Send request
-        rawReqTextarea.addEventListener('keydown', (e) => {
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            const modKey = isMac ? e.metaKey : e.ctrlKey;
-            if (modKey && e.key === 'Enter') {
-                e.preventDefault();
-                if (elements.sendBtn) {
-                    elements.sendBtn.click();
-                }
-            }
-        });
-    }
-
-    // Layout Toggle
-    if (elements.layoutToggleBtn) {
-        elements.layoutToggleBtn.addEventListener('click', toggleLayout);
-
-        // Load saved layout preference
-        const savedLayout = localStorage.getItem('rep_layout_preference');
-        if (savedLayout === 'vertical') {
-            toggleLayout(false); // false to not save again (optimization) or just call it
-        }
-    }
-
-    // Sidebar hide/show toggle
-    const toggleSidebarVisibility = (hidden) => {
-        const container = document.querySelector('.container');
-        if (!container) return;
-        
-        if (hidden) {
-            container.classList.add('sidebar-hidden');
-        } else {
-            container.classList.remove('sidebar-hidden');
-        }
-        
-        // Update sidebar button (inside sidebar)
-        if (elements.toggleSidebarBtn) {
-            elements.toggleSidebarBtn.classList.toggle('active', hidden);
-            const label = hidden ? 'Show sidebar' : 'Hide sidebar';
-            elements.toggleSidebarBtn.title = label;
-            elements.toggleSidebarBtn.setAttribute('aria-label', label);
-        }
-        
-        // Update show sidebar button (in request pane)
-        if (elements.showSidebarBtn) {
-            elements.showSidebarBtn.style.display = hidden ? 'flex' : 'none';
-        }
-        
-        localStorage.setItem('rep_sidebar_hidden', hidden ? '1' : '0');
-    };
-
-    if (elements.toggleSidebarBtn) {
-        elements.toggleSidebarBtn.addEventListener('click', () => {
-            const container = document.querySelector('.container');
-            const isHidden = container && container.classList.contains('sidebar-hidden');
-            toggleSidebarVisibility(!isHidden);
-        });
-    }
-
-    if (elements.showSidebarBtn) {
-        elements.showSidebarBtn.addEventListener('click', () => {
-            toggleSidebarVisibility(false);
-        });
-    }
-
-    // Load saved sidebar state
-    const savedSidebar = localStorage.getItem('rep_sidebar_hidden');
-    if (savedSidebar === '1') {
-        toggleSidebarVisibility(true);
-    }
 
     // Set up event listeners for decoupled communication
     setupEventListeners();
@@ -380,7 +248,7 @@ function setupEventListeners() {
         }
 
         // Update history buttons
-        updateHistoryButtons();
+        events.emit(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS);
     });
 
     // Update request content
@@ -418,8 +286,7 @@ function setupEventListeners() {
         }
 
         // Update preview if it's currently active
-        const previewView = document.getElementById('res-view-preview');
-        if (previewView && previewView.style.display !== 'none' && previewView.classList.contains('active')) {
+        if (elements.resViewPreview && elements.resViewPreview.style.display !== 'none' && elements.resViewPreview.classList.contains('active')) {
             updatePreview(content || '');
         }
     });
@@ -446,18 +313,16 @@ function setupEventListeners() {
 
     // Request filtered event (from request-actions.js)
     events.on('request:filtered', ({ preserveScroll, scrollTop } = {}) => {
-        import('./request-list.js').then(({ filterRequests }) => {
-            if (preserveScroll && scrollTop !== undefined) {
-                const requestList = document.getElementById('request-list');
-                const savedScroll = scrollTop;
-                filterRequests();
-                if (requestList) {
-                    requestList.scrollTop = savedScroll;
-                }
-            } else {
-                filterRequests();
+        if (preserveScroll && scrollTop !== undefined) {
+            const requestList = document.getElementById('request-list');
+            const savedScroll = scrollTop;
+            events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
+            if (requestList) {
+                requestList.scrollTop = savedScroll;
             }
-        });
+        } else {
+            events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
+        }
     });
 
     // Request star updated (from request-actions.js)
@@ -481,10 +346,8 @@ function setupEventListeners() {
 
     // Restore grouped view (from request-actions.js)
     events.on('request:restore-grouped-view', () => {
-        import('./request-list.js').then(({ renderRequestItem }) => {
-            state.requests.forEach((request, index) => {
-                renderRequestItem(request, index);
-            });
+        state.requests.forEach((request, index) => {
+            events.emit(EVENT_NAMES.REQUEST_RENDERED, { request, index });
         });
     });
 
@@ -511,6 +374,6 @@ function setupEventListeners() {
 
 // Re-export everything from split modules
 export { renderRequestList, renderRequestItem, filterRequests, createRequestItemElement, createPageGroup, createDomainGroup } from './request-list.js';
-export { selectRequest, switchRequestView, switchResponseView, toggleLayout, initPreviewControls } from './request-editor.js';
+export { selectRequest, switchRequestView, switchResponseView, toggleLayout, initPreviewControls, setupRawRequestEditor, initLayoutToggle } from './request-editor.js';
 export { toggleStar, toggleGroupStar, setTimelineFilter, toggleAllGroups, getFilteredRequests, setRequestColor } from './request-actions.js';
 export { updateHistoryButtons, clearAllRequestsUI, setupResizeHandle, toggleAllObjects, setupSidebarResize, setupContextMenu, setupUndoRedo, captureScreenshot, exportRequests, importRequests } from './ui-utils.js';

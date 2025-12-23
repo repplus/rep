@@ -1,13 +1,13 @@
 // Request Handler Module - High-level orchestrator for sending requests
 import { state, addToHistory } from '../core/state.js';
-import { elements, updateHistoryButtons } from '../ui/main-ui.js';
+import { elements } from '../ui/main-ui.js';
+import { events, EVENT_NAMES } from '../core/events.js';
 import { parseRequest } from './capture.js';
 import { sendRequest } from './request-sender.js';
 import { formatRawResponse, getStatusClass } from './response-parser.js';
 import { formatBytes } from '../core/utils/format.js';
 import { renderDiff } from '../core/utils/misc.js';
 import { highlightHTTP } from '../core/utils/network.js';
-import { events, EVENT_NAMES } from '../core/events.js';
 import { generateHexView } from '../ui/hex-view.js'
 import { generateJsonView } from '../ui/json-view.js'
 
@@ -17,7 +17,7 @@ export async function handleSendRequest() {
 
     // Add to history
     addToHistory(rawContent, useHttps);
-    updateHistoryButtons();
+    events.emit(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS);
 
     try {
         const { url, options, method, filteredHeaders, bodyText } = parseRequest(rawContent, useHttps);

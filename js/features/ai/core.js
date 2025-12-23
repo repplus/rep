@@ -22,8 +22,87 @@ export function getAISettings() {
     return {
         provider: 'anthropic',
         apiKey: localStorage.getItem('anthropic_api_key') || '',
-        model: localStorage.getItem('anthropic_model') || 'claude-3-5-sonnet-20241022'
+        model: localStorage.getItem('anthropic_model') || 'claude-sonnet-4-5-20250929'
     };
+}
+
+/**
+ * Fetch available Anthropic models for a given API key.
+ * Returns an array of { id, label } objects.
+ */
+export async function fetchAnthropicModels(apiKey) {
+    if (!apiKey) return [];
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/models', {
+            method: 'GET',
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            }
+        });
+
+        if (!response.ok) {
+            // Silently fail and let caller fall back to defaults
+            console.warn('Failed to fetch Anthropic models:', response.status, await response.text());
+            return [];
+        }
+
+        const data = await response.json();
+        const models = Array.isArray(data.data) ? data.data : [];
+
+        return models
+            .map(m => m.id)
+            .filter(Boolean)
+            .map(id => ({ id, label: id }));
+    } catch (e) {
+        console.warn('Error while fetching Anthropic models:', e);
+        return [];
+    }
+}
+
+/**
+ * Fetch available Gemini models for a given API key.
+ * Returns an array of { id, label } objects where id is the short model id
+ * compatible with the existing URL pattern (models/${id}:streamGenerateContent).
+ */
+export async function fetchGeminiModels(apiKey) {
+    if (!apiKey) return [];
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('Failed to fetch Gemini models:', response.status, await response.text());
+            return [];
+        }
+
+        const data = await response.json();
+        const models = Array.isArray(data.models) ? data.models : [];
+
+        return models
+            .map(m => m.name || '')
+            .filter(Boolean)
+            .map(fullName => {
+                // fullName is usually like "models/gemini-1.5-flash"
+                const parts = fullName.split('/');
+                const shortId = parts[parts.length - 1] || fullName;
+                return {
+                    id: shortId,
+                    label: shortId
+                };
+            });
+    } catch (e) {
+        console.warn('Error while fetching Gemini models:', e);
+        return [];
+    }
 }
 
 export function saveAISettings(provider, apiKey, model) {
@@ -158,12 +237,12 @@ export async function streamExplanationFromClaudeWithSystem(apiKey, model, syste
 
         for (const line of lines) {
             if (line.startsWith('data: ')) {
-                const dataStr = line.slice(6);
-                if (dataStr === '[DONE]') continue;
+                const dataStr = line.slice(6).trim();
+                if (!dataStr || dataStr === '[DONE]') continue;
 
                 try {
-                    const data = JSON.parse(line);
-                    if (data.type === 'content_block_delta' && data.delta.text) {
+                    const data = JSON.parse(dataStr);
+                    if (data.type === 'content_block_delta' && data.delta && data.delta.text) {
                         fullText += data.delta.text;
                         onUpdate(fullText);
                     }

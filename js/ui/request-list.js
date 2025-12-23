@@ -4,7 +4,6 @@ import { formatTime } from '../core/utils/format.js';
 import { escapeHtml } from '../core/utils/dom.js';
 import { getHostname } from '../core/utils/network.js';
 import { events, EVENT_NAMES } from '../core/events.js';
-import { toggleStar, toggleGroupStar, deleteGroup, setTimelineFilter, setRequestColor } from './request-actions.js';
 
 const STAR_ICON_FILLED = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
 const STAR_ICON_OUTLINE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.01 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>';
@@ -73,7 +72,7 @@ export function createPageGroup(pageUrl) {
 
             // Re-render requests for this domain
             reRenderDomainRequests(pageHostname);
-            filterRequests();
+            events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
         } else {
             // Analyze - use window function to avoid circular dependency
             if (window.analyzeDomainAttackSurface) {
@@ -85,13 +84,13 @@ export function createPageGroup(pageUrl) {
     const starBtn = header.querySelector('.group-star-btn');
     starBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleGroupStar('page', pageHostname, starBtn);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_GROUP_STAR, { type: 'page', hostname: pageHostname, btn: starBtn });
     });
 
     const deleteBtn = header.querySelector('.group-delete-btn');
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        deleteGroup('page', pageHostname, group);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_DELETE_GROUP, { type: 'page', hostname: pageHostname, groupElement: group });
     });
 
     group.appendChild(header);
@@ -166,13 +165,13 @@ export function createDomainGroup(hostname, isThirdParty = false) {
     const starBtn = header.querySelector('.group-star-btn');
     starBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleGroupStar('domain', hostname, starBtn);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_GROUP_STAR, { type: 'domain', hostname, btn: starBtn });
     });
 
     const deleteBtn = header.querySelector('.group-delete-btn');
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        deleteGroup('domain', hostname, group);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_DELETE_GROUP, { type: 'domain', hostname, groupElement: group });
     });
 
     group.appendChild(header);
@@ -222,7 +221,7 @@ export function createRequestItemElement(request, index, categoryData) {
         // Fallback if URL constructor fails
         if (!displayLabel) {
             displayLabel = request.request.url;
-        }
+    }
         urlSpan.appendChild(document.createTextNode(displayLabel));
     urlSpan.title = request.request.url;
     }
@@ -248,7 +247,7 @@ export function createRequestItemElement(request, index, categoryData) {
     starBtn.title = request.starred ? 'Unstar' : 'Star request';
     starBtn.onclick = (e) => {
         e.stopPropagation();
-        toggleStar(request);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_STAR, { request });
     };
 
     // Color Picker Button
@@ -279,7 +278,7 @@ export function createRequestItemElement(request, index, categoryData) {
 
             swatch.onclick = (e) => {
                 e.stopPropagation();
-                setRequestColor(index, color === 'none' ? null : color);
+                events.emit(EVENT_NAMES.REQUEST_ACTION_COLOR, { index, color: color === 'none' ? null : color });
                 popover.remove();
             };
             popover.appendChild(swatch);
@@ -306,7 +305,7 @@ export function createRequestItemElement(request, index, categoryData) {
     timelineBtn.title = 'Show requests before this one';
     timelineBtn.onclick = (e) => {
         e.stopPropagation();
-        setTimelineFilter(request.capturedAt, index);
+        events.emit(EVENT_NAMES.REQUEST_ACTION_TIMELINE, { timestamp: request.capturedAt, requestIndex: index });
     };
 
     const numberSpan = document.createElement('span');
@@ -515,7 +514,7 @@ export function renderRequestItem(request, index) {
     const pageCount = parseInt(pageCountSpan.textContent.replace(/[()]/g, '')) || 0;
     pageCountSpan.textContent = `(${pageCount + 1})`;
 
-    filterRequests();
+    events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
 }
 
 /**
@@ -624,7 +623,7 @@ function reRenderDomainRequests(pageHostname) {
                     // We need to use the original render logic which appends to the correct group
                     // But renderRequestItem appends to DOM based on pageUrl/hostname
                     // So we can just call it
-                    renderRequestItem(req, idx);
+                    events.emit(EVENT_NAMES.REQUEST_RENDERED, { request: req, index: idx });
                 }
             });
         }
@@ -651,8 +650,19 @@ function getCategoryColor(categoryName) {
  * Main function to render request list
  */
 export function renderRequestList() {
-    filterRequests(); // Always use normal page-based view with optional attack surface per domain
+    events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST); // Always use normal page-based view with optional attack surface per domain
 }
+
+// Set up event listeners for decoupled communication
+events.on(EVENT_NAMES.UI_UPDATE_REQUEST_LIST, () => {
+    filterRequests();
+});
+
+events.on(EVENT_NAMES.REQUEST_RENDERED, (data) => {
+    if (data && data.request && typeof data.index === 'number') {
+        renderRequestItem(data.request, data.index);
+    }
+});
 
 export function filterRequests() {
     const requestList = getRequestList();

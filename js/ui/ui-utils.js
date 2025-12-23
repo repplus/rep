@@ -1,10 +1,9 @@
 // UI Utilities Module - Setup functions, resize, context menu, undo/redo, export/import
-import { state, clearRequests } from '../core/state.js';
+import { state, actions } from '../core/state.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { decodeJWT } from '../core/utils/misc.js';
-import { events } from '../core/events.js';
+import { events, EVENT_NAMES } from '../core/events.js';
 import { elements } from './main-ui.js'; // Keep for context menu and undo/redo which need direct element access
-import { renderRequestItem } from './request-list.js';
 
 export function updateHistoryButtons() {
     const historyBackBtn = document.getElementById('history-back');
@@ -16,6 +15,11 @@ export function updateHistoryButtons() {
         historyFwdBtn.disabled = state.historyIndex >= state.requestHistory.length - 1;
     }
 }
+
+// Set up event listener for decoupled communication
+events.on(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS, () => {
+    updateHistoryButtons();
+});
 
 export function toggleAllObjects() {
     const container = document.querySelector('.json-formatter-container');
@@ -49,8 +53,9 @@ export function toggleAllObjects() {
 
 
 export function clearAllRequestsUI() {
-    clearRequests();
-    state.blockedQueue = [];
+    // Use action to clear requests (automatically emits events)
+    actions.request.clearAll();
+    actions.blocking.clearBlockedQueue();
     const requestList = document.getElementById('request-list');
     if (requestList) {
         requestList.innerHTML = '';
@@ -62,9 +67,9 @@ export function clearAllRequestsUI() {
     }
 
     // Emit event to clear UI elements
-    events.emit('ui:clear-all'); // Using string literal since EVENT_NAMES import would add coupling
+    events.emit(EVENT_NAMES.UI_CLEAR_ALL);
     events.emit('block-queue:updated');
-    updateHistoryButtons();
+    events.emit(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS);
 }
 
 export function setupResizeHandle() {
@@ -1700,8 +1705,8 @@ export function importRequests(file) {
                     starred: false
                 };
 
-                state.requests.push(newReq);
-                renderRequestItem(newReq, state.requests.length - 1);
+                // Use action to add request (automatically emits events)
+                actions.request.add(newReq);
             });
 
             alert(`Imported ${data.requests.length} requests.`);

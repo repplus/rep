@@ -1,11 +1,12 @@
 // Request Editor Module - Request/response editing and view switching
 import { escapeHtml } from '../core/utils/dom.js';
-import { state, addToHistory } from '../core/state.js';
+import { state, actions } from '../core/state.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { generateHexView } from './hex-view.js';
 import { generateJsonView } from './json-view.js';
 import { events, EVENT_NAMES } from '../core/events.js';
 import { getStatusClass, formatRawResponse } from '../network/response-parser.js';
+import { elements } from './main-ui.js';
 
 export function selectRequest(index) {
     // Validate index and request exists
@@ -22,7 +23,8 @@ export function selectRequest(index) {
         return;
     }
     
-    state.selectedRequest = request;
+    // Use action to select request (automatically emits events)
+    actions.request.select(request, index);
 
     // Parse URL
     const urlObj = new URL(state.selectedRequest.request.url);
@@ -61,7 +63,8 @@ export function selectRequest(index) {
     // Initialize History
     state.requestHistory = [];
     state.historyIndex = -1;
-    addToHistory(rawText, useHttps);
+    // Use action to add to history (automatically emits events)
+    actions.history.add(rawText, useHttps);
 
     // Initialize Undo/Redo
     state.undoStack = [rawText];
@@ -110,8 +113,7 @@ export function selectRequest(index) {
         });
 
         // If preview view is currently active, update it with the new response
-        const previewView = document.getElementById('res-view-preview');
-        if (previewView && previewView.style.display !== 'none' && previewView.classList.contains('active')) {
+        if (elements.resViewPreview && elements.resViewPreview.style.display !== 'none' && elements.resViewPreview.classList.contains('active')) {
             updatePreview(rawResponse);
         }
     }
@@ -124,6 +126,7 @@ export function toggleLayout(save = true) {
     events.emit(EVENT_NAMES.UI_LAYOUT_TOGGLED, { isVertical });
 
     // Update icon rotation
+    // Note: layoutToggleBtn is in elements object, but we query here to avoid dependency
     const btn = document.getElementById('layout-toggle-btn');
     if (btn) {
         const svg = btn.querySelector('svg');
@@ -146,6 +149,54 @@ export function toggleLayout(save = true) {
     }
 }
 
+/**
+ * Sets up raw request editor synchronization and hotkeys
+ * @param {HTMLElement} rawRequestInput - The main request input element
+ * @param {HTMLElement} sendBtn - The send button element
+ */
+export function setupRawRequestEditor(rawRequestInput, sendBtn) {
+    // Import elements from main-ui (avoid circular dependency by passing as param for now)
+    // Note: rawRequestTextarea is now in elements object, but we keep param for flexibility
+    const rawReqTextarea = rawRequestInput?.closest('.editor-container')?.querySelector('#raw-request-textarea') || 
+                          document.getElementById('raw-request-textarea');
+    if (!rawReqTextarea) return;
+
+    // Sync textarea to main input
+    rawReqTextarea.addEventListener('input', () => {
+        if (rawRequestInput) {
+            rawRequestInput.innerText = rawReqTextarea.value;
+        }
+    });
+
+    // Hotkey: Ctrl/Cmd + Enter in raw textarea → Send request
+    rawReqTextarea.addEventListener('keydown', (e) => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const modKey = isMac ? e.metaKey : e.ctrlKey;
+        if (modKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (sendBtn) {
+                sendBtn.click();
+            }
+        }
+    });
+}
+
+/**
+ * Initializes layout toggle and loads saved preference
+ * @param {HTMLElement} layoutToggleBtn - The layout toggle button (from elements object)
+ */
+export function initLayoutToggle(layoutToggleBtn) {
+    if (!layoutToggleBtn) return;
+    
+    layoutToggleBtn.addEventListener('click', () => toggleLayout());
+
+    // Load saved layout preference
+    const savedLayout = localStorage.getItem('rep_layout_preference');
+    if (savedLayout === 'vertical') {
+        toggleLayout(false); // false to not save again (optimization)
+    }
+}
+
 export function switchRequestView(view) {
     events.emit(EVENT_NAMES.UI_VIEW_SWITCHED, { pane: 'request', view });
     // Update Tabs
@@ -154,8 +205,14 @@ export function switchRequestView(view) {
     });
 
     // Update Content Visibility
+    const viewElements = {
+        'pretty': elements.reqViewPretty || document.getElementById('req-view-pretty'),
+        'raw': elements.reqViewRaw || document.getElementById('req-view-raw'),
+        'hex': elements.reqViewHex || document.getElementById('req-view-hex')
+    };
+    
     ['pretty', 'raw', 'hex'].forEach(v => {
-        const el = document.getElementById(`req-view-${v}`);
+        const el = viewElements[v];
         if (el) {
             el.style.display = v === view ? 'flex' : 'none';
             el.classList.toggle('active', v === view);
@@ -168,21 +225,21 @@ export function switchRequestView(view) {
         content = text;
     });
     
-    // Fallback: try to get from DOM directly
-    const rawInput = document.getElementById('raw-request-input');
+    // Fallback: try to get from elements object or DOM directly
+    const rawInput = elements.rawRequestInput || document.getElementById('raw-request-input');
     if (rawInput) {
         content = rawInput.innerText;
     }
 
     if (view === 'raw') {
-        const textarea = document.getElementById('raw-request-textarea');
+        const textarea = elements.rawRequestTextarea || document.getElementById('raw-request-textarea');
         if (textarea) textarea.value = content;
     } else if (view === 'hex') {
-        const hexDisplay = document.getElementById('req-hex-display');
+        const hexDisplay = elements.reqHexDisplay || document.getElementById('req-hex-display');
         if (hexDisplay) hexDisplay.textContent = generateHexView(content);
     } else if (view === 'pretty') {
         // Ensure pretty view is up to date if coming from raw
-        const textarea = document.getElementById('raw-request-textarea');
+        const textarea = elements.rawRequestTextarea || document.getElementById('raw-request-textarea');
         if (textarea && textarea.value !== content) {
             events.emit('ui:update-request-content', {
                 text: textarea.value,
@@ -213,13 +270,13 @@ export function switchResponseView(view) {
     const content = state.currentResponse || '';
 
     if (view === 'raw') {
-        const pre = document.getElementById('raw-response-text');
+        const pre = elements.rawResponseText || document.getElementById('raw-response-text');
         if (pre) pre.textContent = content;
     } else if (view === 'hex') {
-        const hexDisplay = document.getElementById('res-hex-display');
+        const hexDisplay = elements.hexResponseDisplay || document.getElementById('res-hex-display');
         if (hexDisplay) hexDisplay.textContent = generateHexView(content);
     } else if (view === 'json') {
-        const jsonDisplay = document.getElementById('res-json-display');
+        const jsonDisplay = elements.jsonResponseDisplay || document.getElementById('res-json-display');
         if (jsonDisplay) {
             jsonDisplay.innerHTML = '';
             jsonDisplay.appendChild(generateJsonView(content));
@@ -252,8 +309,8 @@ function extractBody(rawHttp) {
 
 // Update preview iframe with response body
 export function updatePreview(rawResponse) {
-    const iframe = document.getElementById('response-preview-iframe');
-    const allowScriptsCheckbox = document.getElementById('preview-allow-scripts');
+    const iframe = elements.responsePreviewIframe || document.getElementById('response-preview-iframe');
+    const allowScriptsCheckbox = elements.previewAllowScriptsCheckbox || document.getElementById('preview-allow-scripts');
     
     if (!iframe) return;
 
@@ -294,14 +351,13 @@ export function updatePreview(rawResponse) {
 
 // Setup checkbox listener for preview
 export function initPreviewControls() {
-    const allowScriptsCheckbox = document.getElementById('preview-allow-scripts');
-    const iframe = document.getElementById('response-preview-iframe');
+    const allowScriptsCheckbox = elements.previewAllowScriptsCheckbox || document.getElementById('preview-allow-scripts');
+    const iframe = elements.responsePreviewIframe || document.getElementById('response-preview-iframe');
     
     if (allowScriptsCheckbox && iframe) {
         allowScriptsCheckbox.addEventListener('change', () => {
             // Reload preview with updated sandbox settings
-            const previewView = document.getElementById('res-view-preview');
-            if (previewView && previewView.style.display !== 'none') {
+            if (elements.resViewPreview && elements.resViewPreview.style.display !== 'none') {
                 const content = state.currentResponse || '';
                 updatePreview(content);
             }
