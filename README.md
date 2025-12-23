@@ -28,7 +28,7 @@
 
 rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeater, now supercharged with AI. I often need to poke at a few requests without spinning up the full Burp stack, so I built this extension to keep my workflow fast, focused, and intelligent with integrated LLM support.
 
-<img width="1805" height="1287" alt="Screenshot 2025-12-23 at 18 28 40" src="https://github.com/user-attachments/assets/20289c40-ec45-49fe-bf06-55a7e90150a1" />
+<img width="2030" height="1145" alt="Screenshot 2025-12-23 at 21 27 03" src="https://github.com/user-attachments/assets/7dec4048-b1cd-4f90-9e2e-2a3e476f8643" />
 
 [![Watch Demo](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://video.twimg.com/amplify_video/1992382891196571648/pl/zE5-oOXgVua1ZBQn.m3u8?tag=14)
 
