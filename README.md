@@ -66,7 +66,10 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 - Pretty / Raw / Hex views; layout toggle (horizontal/vertical).
 - Converters: Base64, URL encode/decode, JWT decode, Hex/UTF-8.
 - History, undo/redo, and syntax highlighting for requests/responses.
-- Screenshots for request/response pairs; copy helpers for req/resp.
+- Context menu helpers on the request editor:
+  - Convert selected text (Base64, URL encode/decode, JWT decode).
+  - **Copy as** full HTTP request in multiple languages: `curl`, PowerShell (`Invoke-WebRequest`), Python (`requests`), and JavaScript `fetch`.
+- Screenshot editor for request/response pairs: full-content capture, side‑by‑side or stacked layout, zoom, highlight and black-box redaction, resizable/movable annotations, keyboard delete, and undo/redo for all edits.
 
 ### Bulk & Automation
 - Bulk replay with 4 attack modes: Sniper, Battering Ram, Pitchfork, Cluster Bomb.
@@ -74,10 +77,33 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 - Response diff view to spot changes between baseline and attempts.
 
 ### Extractors & Search
-- Unified Extractor: secrets and endpoints from captured JS.
-- Secret Scanner: entropy + patterns with confidence scores; pagination and domain filter.
-- Endpoint Extractor: full URLs, relative paths, GraphQL; method detection; one-click copy (rebuilds base URL).
-- Response Search: regex support, match preview, pagination, domain filter.
+- Unified Extractor: secrets, endpoints, and parameters from captured JS.
+- **Secret Scanner**: entropy + patterns with confidence scores; pagination and domain filter.
+  - Powered by [Kingfisher](https://github.com/mongodb/kingfisher) rules for comprehensive secret detection
+  - Supports AWS, GitHub, Google, Slack, Stripe, Twilio, Azure, and many more service providers
+  - Rules stored locally in `rules/` directory for offline use
+  - **Note**: Secret scanning only analyzes JavaScript files from the **current inspected tab**.
+  - **Export**: Export all secrets to CSV for analysis and reporting
+- **Endpoint Extractor**: full URLs, relative paths, GraphQL; method detection; one-click copy (rebuilds base URL).
+  - **Export**: Export all endpoints to CSV with method, endpoint path, confidence, and source file
+- **Parameter Extractor**: passive JavaScript parameter discovery with intelligent grouping and risk assessment.
+  - **Parameter Types**: Extracts query, body, header, and path parameters from JavaScript files
+  - **Grouped by Endpoint**: Parameters are organized by endpoint with expandable/collapsible groups
+  - **Risk Classification**: Automatically identifies high-risk parameters (auth, admin, debug flags, IDOR, feature flags)
+  - **Confidence Scoring**: Stricter confidence model than endpoints to reduce false positives
+  - **Smart Filtering**: Suppresses common false positives (webpack, React, jQuery, DOM events, telemetry)
+  - **Copy as cURL**: One-click copy generates curl commands with all parameters properly formatted
+  - **Location Badges**: Visual indicators for parameter location (query/body/header/path)
+  - **Domain Filtering**: Filter parameters by source domain with accurate counts
+  - **Column Sorting**: Sort by parameter name, location, endpoint, method, risk level, or confidence
+  - **Export Options**:
+    - **CSV Export**: Export all parameters with location, endpoint, method, risk level, and confidence
+    - **Postman Collection Export**: Generate ready-to-import Postman collection JSON with all endpoints and parameters
+      - Automatically groups parameters by endpoint
+      - Includes query, body, and header parameters
+      - Uses Postman variable syntax (`{{paramName}}`) for easy testing
+      - Perfect for security testers who want to quickly import discovered APIs into Postman
+- **Response Search**: regex support, match preview, pagination, domain filter.
 
 ### AI Assistance
 - Explain Request (Claude/Gemini) with streaming responses.
@@ -138,6 +164,7 @@ If you use a local model (e.g., Ollama) you must allow Chrome extensions to call
 - **Optional**: `webRequest` + `<all_urls>` only when you enable multi-tab capture.  
 - **Data**: Stored locally; no tracking/analytics.  
 - **AI**: Your API keys stay local; request/response content is sent only to the provider you choose (Claude/Gemini) when you invoke AI features.
+
 
 ## ⚠️ Limitations
 
@@ -207,6 +234,10 @@ If **rep+ saved you time** during testing, development, or bug bounty work, plea
    &nbsp;&nbsp;
    <a href="https://github.com/greenat92">
     <img src="https://avatars.githubusercontent.com/u/8342706?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
+  </a>
+   &nbsp;&nbsp;
+   <a href="https://github.com/tixxdz">
+    <img src="https://avatars.githubusercontent.com/u/1549291?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
   </a>
 </p>
 

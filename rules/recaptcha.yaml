@@ -1,0 +1,35 @@
+rules:
+  - name: reCAPTCHA API Key
+    id: kingfisher.recaptcha.1
+    pattern: |
+      (?xi)
+      recaptcha
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        6l[c-f][a-z0-9_-].{36}
+      )
+    pattern_requirements:
+      min_digits: 3
+    min_entropy: 3
+    confidence: medium
+    examples:
+      - recaptcha apikey = 6Lcr--w-BBBBBw-w-w----w-w-www-www--ww-w-
+      - recaptcha_secret = 6Lcw--w-AAAAAw-w-w----w-w-www-www--ww-w-
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Content-Type: application/x-www-form-urlencoded
+          body: |
+            secret={{ TOKEN }}
+            response=test
+          method: POST
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"success": true'
+          url: https://www.google.com/recaptcha/api/siteverify

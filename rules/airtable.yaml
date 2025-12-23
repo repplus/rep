@@ -1,0 +1,66 @@
+rules:
+  - name: Airtable Personal Access Token
+    id: kingfisher.airtable.1
+    pattern: |
+      (?xi)                    
+      \b                       
+      (                        
+        pat
+        [a-z0-9]{14}
+        \.                     
+        [a-z0-9]{62,66}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1     
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - airtable_pat = patXfsZBLOgxbJqSi.fd6210cfb2e0b2049bd8e7fa0e69f26a3a704412af6fcbd93a097c42507fc893
+    categories:
+      - api
+      - secret
+    references:
+      - https://airtable.com/developers/web/api/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.airtable.com/v0/meta/whoami
+  - name: Airtable OAuth Token
+    id: kingfisher.airtable.2
+    pattern: |
+      (?xi)
+      (
+        [A-Z0-9]+\.v1\.[A-Z0-9_-]+\.[a-f0-9]+
+      )
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - example.v1.XYZ123_ABC.abcdef123456
+    references:
+      - https://airtable.com/developers/web/api/oauth-reference
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.airtable.com/v0/meta/whoami

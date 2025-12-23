@@ -1,0 +1,37 @@
+rules:
+  - name: Line Messaging API Token
+    id: kingfisher.line.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      line
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                     
+      (                      
+        (?:[0-9A-Z+/]{57}){3}=? 
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - line_access_token = 13IRTqF+j0TfDtuJoIWKRBPhpDnqYUaaSlOilnoy0urLE+kbf5hN4HUf5pSPw20ruyO0BFFF1IDjnBojctp5emFw0hZ51WxB8c75qo48upJInfmqDQ1xrFd4yFKBwx4yRBHYXmI/FyrtcWKd0FBoBAdB04t81/1O/w1cDnyilFU=
+      - linemsg_token:"13IRTqF+j0TfDtuJoIWKRBPhpDnqYUaaSlOilnoy0urLE+kbf5hN4HUf5pSPw20ruyO0BFFF1IDjnBojctp5emFw0hZ51WxB8c75qo48upJInfmqDQ1xrFd4yFKBwx4yRBHYXmI/FyrtcWKd0FBoBAdB04t81/1O/w1cDnyilFU="
+    references:
+      - https://developers.line.biz/en/reference/messaging-api/#get-consumption
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Content-Type: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.line.me/v2/bot/message/quota/consumption

@@ -1,0 +1,35 @@
+rules:
+  - name: Infracost API Token
+    id: kingfisher.infracost.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        ico-[a-z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - export INFRACOST_API_KEY=ico-abcdefabcdefabcdefabcdefabcdefab
+      - '"infracost": "ico-1234567890abcdef1234567890abcdef"'
+    references:
+      - https://www.infracost.io/docs/api_reference/
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://pricing.api.infracost.io/graphql
+          headers:
+            X-Api-Key: '{{ TOKEN }}'
+            Content-Type: application/json
+            Accept: application/json
+          body: '{"query":"{ ping }"}'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

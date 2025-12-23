@@ -1,4 +1,5 @@
 // Request Editor Module - Request/response editing and view switching
+import { escapeHtml } from '../core/utils/dom.js';
 import { state, addToHistory } from '../core/state.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { generateHexView } from './hex-view.js';
@@ -7,7 +8,21 @@ import { events, EVENT_NAMES } from '../core/events.js';
 import { getStatusClass, formatRawResponse } from '../network/response-parser.js';
 
 export function selectRequest(index) {
-    state.selectedRequest = state.requests[index];
+    // Validate index and request exists
+    if (index < 0 || index >= state.requests.length) {
+        console.warn(`selectRequest: Invalid index ${index}, total requests: ${state.requests.length}`);
+        return;
+    }
+    
+    let request = state.requests[index];
+    if (!request || !request.request) {
+        // Try to find the request by matching URL or other identifier
+        console.warn(`selectRequest: Request at index ${index} is invalid, attempting to find by element`);
+        // If we can't find it, just return
+        return;
+    }
+    
+    state.selectedRequest = request;
 
     // Parse URL
     const urlObj = new URL(state.selectedRequest.request.url);
@@ -93,6 +108,12 @@ export function selectRequest(index) {
             baseline: null,
             showDiff: false
         });
+
+        // If preview view is currently active, update it with the new response
+        const previewView = document.getElementById('res-view-preview');
+        if (previewView && previewView.style.display !== 'none' && previewView.classList.contains('active')) {
+            updatePreview(rawResponse);
+        }
     }
 }
 
@@ -179,7 +200,7 @@ export function switchResponseView(view) {
     });
 
     // Update Content Visibility
-    ['pretty', 'raw', 'hex', 'render', 'json'].forEach(v => {
+    ['pretty', 'raw', 'hex', 'render', 'json', 'preview'].forEach(v => {
         const el = document.getElementById(`res-view-${v}`);
         if (el) {
             el.style.display = v === view ? 'flex' : 'none';
@@ -203,6 +224,88 @@ export function switchResponseView(view) {
             jsonDisplay.innerHTML = '';
             jsonDisplay.appendChild(generateJsonView(content));
         }
+    } else if (view === 'preview') {
+        updatePreview(content);
+    }
+}
+
+// Extract HTML body from raw HTTP response
+function extractBody(rawHttp) {
+    if (!rawHttp || typeof rawHttp !== 'string') {
+        return '';
+    }
+
+    // Try CRLF format first (\r\n\r\n)
+    let separatorIndex = rawHttp.indexOf('\r\n\r\n');
+    if (separatorIndex !== -1) {
+        return rawHttp.substring(separatorIndex + 4);
+    }
+    
+    // Try LF format (\n\n)
+    separatorIndex = rawHttp.indexOf('\n\n');
+    if (separatorIndex !== -1) {
+        return rawHttp.substring(separatorIndex + 2);
+    }
+    
+    return '';
+}
+
+// Update preview iframe with response body
+export function updatePreview(rawResponse) {
+    const iframe = document.getElementById('response-preview-iframe');
+    const allowScriptsCheckbox = document.getElementById('preview-allow-scripts');
+    
+    if (!iframe) return;
+
+    // Extract body from raw HTTP response
+    const htmlBody = extractBody(rawResponse);
+    
+    if (!htmlBody.trim()) {
+        iframe.srcdoc = '<html><body style="padding: 20px; font-family: sans-serif;"><p>No content to preview</p></body></html>';
+        return;
+    }
+
+    // Check if content looks like HTML
+    const trimmedBody = htmlBody.trim();
+    const isHTML = trimmedBody.startsWith('<!') || 
+                   trimmedBody.startsWith('<html') || 
+                   trimmedBody.startsWith('<HTML') ||
+                   trimmedBody.startsWith('<body') ||
+                   trimmedBody.startsWith('<BODY');
+
+    if (!isHTML) {
+        iframe.srcdoc = `<html><body style="padding: 20px; font-family: monospace; white-space: pre-wrap;">${escapeHtml(htmlBody)}</body></html>`;
+        return;
+    }
+
+    // Update sandbox attribute based on checkbox
+    const allowScripts = allowScriptsCheckbox && allowScriptsCheckbox.checked;
+    if (allowScripts) {
+        // Allow scripts, popups (for links), and top-navigation (for form submissions)
+        iframe.setAttribute('sandbox', 'allow-forms allow-same-origin allow-scripts allow-popups allow-top-navigation-by-user-activation');
+    } else {
+        // Default: only allow forms and same-origin (no scripts, no popups)
+        iframe.setAttribute('sandbox', 'allow-forms allow-same-origin');
+    }
+
+    // Set the HTML content using srcdoc
+    iframe.srcdoc = htmlBody;
+}
+
+// Setup checkbox listener for preview
+export function initPreviewControls() {
+    const allowScriptsCheckbox = document.getElementById('preview-allow-scripts');
+    const iframe = document.getElementById('response-preview-iframe');
+    
+    if (allowScriptsCheckbox && iframe) {
+        allowScriptsCheckbox.addEventListener('change', () => {
+            // Reload preview with updated sandbox settings
+            const previewView = document.getElementById('res-view-preview');
+            if (previewView && previewView.style.display !== 'none') {
+                const content = state.currentResponse || '';
+                updatePreview(content);
+            }
+        });
     }
 }
 

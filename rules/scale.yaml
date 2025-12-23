@@ -1,0 +1,64 @@
+rules:
+  - name: Scale API Key
+    id: kingfisher.scale.1
+    pattern: |
+      (?x)
+      \b
+      (
+        live_
+        [0-9a-f]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.1
+    confidence: medium
+    examples:
+      - live_8df31399ec4a4755a7cf9e0fb59f967a
+      - live_54d1bd2d1e62430bb2d521d298ec4231
+      - live_1b9fc721a4624a478211ce613c674a03
+    references:
+      - https://scale.com/docs/api-reference/authentication
+      - https://scale.com/docs/api-reference/studio#list-all-teammates 
+      - https://scale.com/docs/api-reference/authentication#test-and-live-modes 
+
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.scale.com/v1/teams  
+          headers:
+            Authorization: 'Basic {{ TOKEN | append: ":" | b64enc }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200] 
+            - type: JsonValid
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"email"'
+                - '"role"'
+
+  - name: Scale Callback Auth Key
+    id: kingfisher.scale.2
+    pattern: |
+      (?x)
+      \b
+      (
+        live_auth_ 
+        [0-9a-f]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.1
+    confidence: medium
+    examples:
+      - live_auth_250ae896ada542c08a95734f935c871a
+    references:
+      - https://scale.com/docs/api-reference/authentication#callback-authentication
+    # Callback keys are *only* echoed by Scale in webhook headers and
+    # can’t be validated via an API call, so no `validation:` block.

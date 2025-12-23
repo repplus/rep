@@ -1,0 +1,76 @@
+rules:
+  - name: particle.io Access Token
+    id: kingfisher.particleio.1
+    pattern: |
+      (?xi)
+      https://api\.particle\.io/v1/[A-Z0-9_\-\s/"\\?]*
+      (?:access_token=|Authorization:\s*Bearer\s*)
+      (
+        [A-Z0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        curl https://api.particle.io/v1/devices \
+        -H "Authorization: Bearer 38bb7b318cc6898c80317decb34525844bc9db55"
+      - |
+        curl https://api.particle.io/v1/devices \
+        -d access_token=38bb7b318cc6898c80317decb34525844bc9db55
+      - 'curl https://api.particle.io/v1/devices -H "Authorization: Bearer 38bb7b318cc6898c80317decb34525844bc9db55"'
+      - 'curl https://api.particle.io/v1/devices -d access_token=38bb7b318cc6898c80317decb34525844bc9db55'
+      - 'curl "https://api.particle.io/v1/devices/events?access_token=38bb7b318cc6898c80317decb34525844bc9db55"'
+      - 'curl "https://api.particle.io/v1/access_tokens/current?access_token=38bb7b318cc6898c80317decb34525844bc9db55"'
+    references:
+      - https://docs.particle.io/reference/cloud-apis/api/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.particle.io/v1/user?access_token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              match_all_words: true
+              words: ['"username":']
+
+  - name: particle.io Access Token
+    id: kingfisher.particleio.2
+    pattern: |
+      (?xi)
+      (?:access_token=|Authorization:\s*Bearer\s*)
+      ([A-Z0-9]{40})
+      \b
+      [\s"\\]*https://api\.particle\.io/v1
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        curl -H "Authorization: Bearer 38bb7b318cc6898c80317decb34525844bc9db55" \
+        https://api.particle.io/v1/devices
+      - |
+        curl -d access_token=38bb7b318cc6898c80317decb34525844bc9db55 \
+        https://api.particle.io/v1/devices
+      - 'curl -H "Authorization: Bearer 38bb7b318cc6898c80317decb34525844bc9db55" https://api.particle.io/v1/devices'
+      - 'curl -d access_token=38bb7b318cc6898c80317decb34525844bc9db55 https://api.particle.io/v1/devices'
+    references:
+      - https://docs.particle.io/reference/cloud-apis/api/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.particle.io/v1/user?access_token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              match_all_words: true
+              words: ['"username":']

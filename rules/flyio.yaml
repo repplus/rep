@@ -1,0 +1,38 @@
+rules:
+  - name: Fly.io API Token
+    id: kingfisher.flyio.1
+    pattern: |
+      (?x)
+      \b
+      (
+        FlyV1\s[A-Za-z0-9=_\-,/+]{100,}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: "https://api.fly.io/graphql"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+            Content-Type: "application/json"
+          body: '{"query":"query { viewer { id email name } }"}'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"data":'
+                - '"viewer":'
+                - '"email":'
+              match_all_words: true
+    references:
+      - https://fly.io/docs/reference/graphql/
+    examples:
+      - "FlyV1 fm2_lJPECAAAAAAACcIGxBBr3eFBrCTMuIb8FOeUWTf0wrVodHRwczovL2FwaS5mbHkuaW8vdjGUAJLOABLVch8Lk7lodHRwczovL2FwaS5mbHkuaW8vYWFhL3YxxDymEU+hbM4EZ6KeG6k1EWHesm6buoSgwBS8yBSLRiHumjZXcxZdCJ2gJ3PN//X8DKdsEFfZyS03lbJtPpwETgpeWpRbsMxfQb2ZkR4zYNi/IOOKYxW2h6DYBHahN3DBS7wY54AIgap8IMAtBJ3imo77+vAeAeZ/0aPq3XJoGdg4+WHDWkxectcZoZROe8Qgnq4tV2yiT2Mx5wmoK+Kw1u33egtwLCEBDC5ZakEM7pI=,fm2_lJPETgpeWpRbsMxfQb2ZkR4zYNi/IOOKYxW2h6DYBHahN3DBS7wY54AIgap8IMAtBJ3imo77+vAeAeZ/0aPq3XJoGdg4+WHDWkxectcZoZROe8QQCY7oFTr+3MOM0p5/Cww1AsO5aHR0cHM6Ly9hcGkuZmx5LmlvL2FhYS92MZgEks5ooPjrzwAAAAEkmRcJF84AEhmjCpHOABIZowzEEMLj9PMThJElQN/ARptX7D3EILDtbLx/4cBgt6fX+zb6/FxsLxV2A/y4e4BeU1SunG+O"

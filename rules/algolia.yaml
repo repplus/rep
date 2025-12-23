@@ -1,0 +1,53 @@
+rules:
+  - name: Algolia Admin API Key
+    id: kingfisher.algolia.1
+    pattern: |
+      (?xi)
+      algolia
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - algolia_api_key = "ij1mut5oe606wlrf5z4u8u31264z3gag"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            X-Algolia-API-Key: '{{ TOKEN }}'
+            X-Algolia-Application-Id: '{{ APPID }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://{{ APPID }}-dsn.algolia.net/1/keys/{{ TOKEN }}
+    depends_on_rule:
+      - rule_id: "kingfisher.algolia.2"
+        variable: APPID
+  
+  - name: Algolia Application ID
+    id: kingfisher.algolia.2
+    pattern: |
+      (?xi)
+      algolia
+      (?:.|[\n\r]){0,16}?
+      (
+        [A-Z0-9]{10}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 2.0
+    visible: false
+    confidence: medium
+    examples:
+      - algolia_app_id = "WRB8YLFW7Y"

@@ -1,0 +1,87 @@
+rules:
+  - name: Facebook App ID
+    id: kingfisher.facebook.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      (?:facebook|fb)
+      (?:.|[\n\r]){0,8}?
+      (?:APP|APPLICATION)
+      (?:.|[\n\r]){0,16}?
+      \b                     
+      (                      
+        \d{15}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 15     
+    min_entropy: 2.0
+    visible: false
+    confidence: medium
+    examples:
+      - '"facebook String appId = "294790898041575"; String appSecret = "ce3f9f0362bbe5ab01dfc8ee565e4372"'
+      - 'fb_app_id: 123456789012345'
+      - 'FACEBOOK_APPLICATION_ID=123456789012345'
+
+  - name: Facebook Secret Key
+    id: kingfisher.facebook.2
+    pattern: |
+      (?xi)
+      \b (?: facebook | fb )
+      .?
+      (?: api | app | application | client | consumer | customer | secret | key )
+      .?
+      (?: key | oauth | sec | secret )?
+      .{0,2} \s{0,20} .{0,2} \s{0,20} .{0,2}
+      \b ([a-z0-9]{32}) \b
+    examples:
+      - '   # config.facebook.key = "34cebc81c056a21bc66e212f947d73ec"'
+      - "    var fbApiKey = '0278fc1adf6dc1d82a156f306ce2c5cc';"
+      - '     fbApiKey:            "171e84fd57f430fc59afa8fad3dbda2a",'
+      - '"facebook appSecret = "ce3f9f0362bbe5ab01dfc8ee565e4372"'
+    pattern_requirements:
+      min_digits: 2
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Content-Type: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: >-
+            https://graph.facebook.com/v19.0/oauth/access_token
+            ?client_id={{ APIID }}
+            &client_secret={{ TOKEN }}
+            &grant_type=client_credentials
+    depends_on_rule:
+      - rule_id: kingfisher.facebook.1
+        variable: APIID
+
+  - name: Facebook Access Token
+    id: kingfisher.facebook.3
+    pattern: |
+      (?xi)
+      (?:
+        \b
+        (?:facebook|fb\b)
+        (?:.|[\n\r]){0,32}?
+        (?:access_token|access[\s-]token)
+        (?:.|[\n\r]){0,32}?
+      )?
+      (
+        EAACEdEose0cBA[A-Z0-9]{20,}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "url = 'https://graph.facebook.com/me/friends?access_token=EAACEdEose0cBAD5XZCz5JXYvqyeJzcSvFZC42toHiWyfjhcZCMZBZCpE3uRJnEBsrhUEMRK1wWs6SsdiDCaCI1mYwyoNuMix2XZCpvsKbZB9TumtZBlcLeIpl4pa931Ce9rTinEAhtyVVZAAZAX4NmfpBUqWtzCRC0fX5GZBn7ZC28mPKAZDZD'"
+      - 'fb_access_token: "EAACEdEose0cBAMZD123456789abcdefghijklmnopqrstuvwxyz"'
+      - 'FACEBOOK_ACCESS_TOKEN=EAACEdEose0cBAZAQW123456789abcdefghijklmnopqrstuvwxyzASDFGHJKL'

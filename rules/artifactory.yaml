@@ -1,0 +1,60 @@
+rules:
+  - name: Artifactory Access Token
+    id: kingfisher.artifactory.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        AKC[A-Z0-9]{64,74}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - |
+        export HOMEBREW_ARTIFACTORY_API_TOKEN=AKCp8igrDNFerC357m4422e4tmu7xB983QLPxJhKFcSMfoux2RFvp8rc4jC8t9ncdmYCMFD8W
+        export HOMEBREW_ARTIFACTORY_API_USER=kashorn
+      - 'jfrog rt dl --url=http://localhost:8071/artifactory --apikey=AKCp2WXX7SDvcsmny528sSDnaB3zACkNQoRcD8D1WmxhMV9gk6Wp8mVWC8bh38kJQbXagUT8Z generic-local/hello.txt'
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            X-JFrog-Art-Api: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: JsonValid
+          url: https://{{ JFROGURL }}/artifactory/api/repositories
+    depends_on_rule:
+      - rule_id: "kingfisher.artifactory.2"
+        variable: JFROGURL
+
+  - name: Artifactory JFrog URL
+    id: kingfisher.artifactory.2
+    pattern: |
+      (?xi)                       
+      \b                         
+      (                          
+        [a-z0-9]
+        (?:
+          [a-z0-9\-]{0,61}
+          [a-z0-9]
+        )?
+        \.jfrog\.io
+      )                          
+      \b                         
+    min_entropy: 3.5
+    visible: false
+    confidence: medium
+    examples:
+      - mycompany.jfrog.io
+      - my-company-name.jfrog.io
+      - a.jfrog.io

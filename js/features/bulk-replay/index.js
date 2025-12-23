@@ -271,17 +271,55 @@ export function setupBulkReplay() {
     const markPayloadItem = contextMenu.querySelector('[data-action="mark-payload"]');
     if (markPayloadItem) {
         markPayloadItem.addEventListener('click', () => {
-            const selection = window.getSelection();
-            if (!selection.rangeCount) return;
+            // Use the selection information stored by `setupContextMenu` in `ui-utils.js`
+            const targetType = contextMenu.dataset.target;
+            const editor = targetType === 'request' ? elements.rawRequestInput : elements.rawResponseDisplay;
 
-            const range = selection.getRangeAt(0);
-            const selectedText = range.toString();
-
-            if (selectedText) {
-                document.execCommand('insertText', false, `§${selectedText}§`);
-            } else {
-                document.execCommand('insertText', false, '§§');
+            if (!editor) {
+                contextMenu.classList.remove('show');
+                return;
             }
+
+            const rawSelected = contextMenu.dataset.selectedText || '';
+            const selectedText = rawSelected.trim();
+
+            if (!selectedText) {
+                contextMenu.classList.remove('show');
+                return;
+            }
+
+            const editorText = editor.textContent || editor.innerText || '';
+            let startIndex = editorText.indexOf(selectedText);
+
+            // As a small safeguard, if the trimmed text isn't found, try the raw text
+            if (startIndex === -1 && rawSelected) {
+                startIndex = editorText.indexOf(rawSelected);
+            }
+
+            if (startIndex === -1) {
+                // If we can't reliably find the text, do nothing rather than
+                // inserting at an incorrect position (like the start of the request)
+                contextMenu.classList.remove('show');
+                return;
+            }
+
+            const lengthToUse = startIndex === -1 ? 0 : selectedText.length;
+            const before = editorText.substring(0, startIndex);
+            const middle = editorText.substring(startIndex, startIndex + lengthToUse);
+            const after = editorText.substring(startIndex + lengthToUse);
+            const newText = `${before}§${middle}§${after}`;
+
+            editor.textContent = newText;
+
+            // Re-apply HTTP highlighting and notify undo system for the request editor
+            if (editor === elements.rawRequestInput) {
+                const currentContent = editor.innerText || editor.textContent;
+                editor.innerHTML = highlightHTTP(currentContent);
+                // Trigger input so the undo stack captures this change
+                const inputEvent = new Event('input', { bubbles: true });
+                editor.dispatchEvent(inputEvent);
+            }
+
             contextMenu.classList.remove('show');
         });
     }

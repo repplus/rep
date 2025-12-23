@@ -1,0 +1,55 @@
+rules:
+  - name: PostHog Project API Key
+    id: kingfisher.posthog.1
+    pattern: | 
+      (?x)
+      (
+        phc_[a-zA-Z0-9_\-]{43}
+      )
+    min_entropy: 3.0
+    confidence: high
+    examples:
+      - "phc_E123456789012345678901234567890123456789012"
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://app.posthog.com/decide/?v=3
+          headers:
+            Content-Type: "application/json"
+          body: |
+            {"token": "{{ TOKEN }}", "distinct_id": "validation_check"}
+          response_matcher:
+            - type: WordMatch
+              words:
+                - '"isAuthenticated":false'
+              negative: true
+            - type: StatusMatch
+              status: [200]
+  - name: PostHog Personal API Key
+    id: kingfisher.posthog.2
+    pattern: |
+      (?x)
+      (
+        phx_[a-zA-Z0-9_\-]{47}
+      )
+    min_entropy: 3.0
+    confidence: high
+    examples:
+      - "phx_FNKCx83Ko0JQMuZH1zz94xgK798TCUybkf79ZKYKwKQWbEw"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://app.posthog.com/api/users/@me/
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Content-Type: "application/json"
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - "authentication_failed"
+              negative: true

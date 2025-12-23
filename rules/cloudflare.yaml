@@ -1,0 +1,79 @@
+rules:
+  - name: Cloudflare API Token
+    id: kingfisher.cloudflare.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      cloudflare
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                     
+      (
+        [a-z0-9_-]{38,42}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - cloudflareAPIKey = A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0
+      - |
+        CLOUDFLARE_API_TOKEN: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0'
+        cloudflare_key="B1C2D3E4F5G6H7I8J9K0L1M2N3O4P5Q6R7S8T9U0V1"
+    references:
+      - https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.cloudflare.com/client/v4/user/tokens/verify
+
+  - name: Cloudflare CA Key
+    id: kingfisher.cloudflare.2
+    pattern: |
+      (?xi)
+      \b                     
+      (?:cloudflare|x-auth-user-service-key)
+      (?:.|[\n\r]){0,64}?
+      (
+        v1\.0-[a-z0-9._-]{160,}
+      )
+      \b      
+    pattern_requirements:
+      min_digits: 2               
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - 'X-Auth-User-Service-Key = v1.0-e26de050e02ddeaeef6de8d5ee267df5e78f68666ddd0ee76f22d26a0d20756f-eda77de60e8e76077e162727656787de2005d25e2f6e502e2d067657ed65722eade065275001a0f6f6e521e5e1fd76a6e8d7e2d6da8a2ee01e66e061e22570e2-07f2ede0aed78e82e8d2e620aaef8656d81e762266d7d226a205de7e18e2256a'
+      - |
+        cloudflare_service_key: "v1.0-e26de050e02ddeaeef6de8d5ee267df5e78f68666ddd0ee76f22d26a0d20756f-eda77de60e8e76077e162727656787de2005d25e2f6e502e2d067657ed65722eade065275001a0f6f6e521e5e1fd76a6e8d7e2d6da8a2ee01e66e061e22570e2-07f2ede0aed78e82e8d2e620aaef8656d81e762266d7d226a205de7e18e2256a"
+    references:
+      - https://developers.cloudflare.com/api/keys/
+      - https://developers.cloudflare.com/fundamentals/api/get-started/keys/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Content-Type: application/json
+            X-Auth-User-Service-Key: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.cloudflare.com/client/v4/certificates?per_page=1

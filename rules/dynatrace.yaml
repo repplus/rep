@@ -1,0 +1,35 @@
+rules:
+  - name: Dynatrace Token
+    id: kingfisher.dynatrace.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        dt0[a-z][0-9]{2}
+        \.
+        [A-Z0-9]{24}
+        \.
+        [A-Z0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dt0c01.ST2EY72KQINMH574WMNVI7YN.G3DFPBEJYMODIDAEX454M7YWBUVEFOWKPRVMWFASS64NFH52PX6BNDVFFM572RZM
+    references:
+      - https://docs.dynatrace.com/docs/discover-dynatrace/references/dynatrace-api/basics/dynatrace-api-authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.dynatrace.com/v2/release-notes
+          headers:
+            Authorization: "Api-Token {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid

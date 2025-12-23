@@ -1,0 +1,34 @@
+rules:
+  - name: StackHawk API Key
+    id: kingfisher.stackhawk.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        hawk\.[0-9A-Z_-]{20}\.[0-9A-Z_-]{20}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    examples:
+      - 'HAWK_API_KEY="hawk.nHAOHdJjXoNyzAcTDC5M.R2gqQh2aCesrh0yCGB7q"'
+    references:
+      - https://docs.stackhawk.com/apidocs.html
+      - https://apidocs.stackhawk.com/reference/getuser
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.stackhawk.com/api/v1/auth/user"
+          headers:
+            X-Api-Key: "{{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"user":'

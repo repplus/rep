@@ -1,0 +1,59 @@
+rules:
+  - name: PayPal OAuth Client ID
+    id: kingfisher.paypal.1
+    pattern: |
+      (?xi)
+      paypal
+      (?:.|[\n\r]){0,8}?               
+      (?:CLIENT|ID|USER)
+      (?:.|[\n\r]){0,16}?              
+      \b
+      (                                 
+        A[A-Z0-9_-]{78,99}          
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    visible: false
+    examples:
+      - paypal_client_id=AZJ6y8Dpr1TYbqAIdhkPzyhjXoY6mIdhkPzyhjXoY6m8GplL7C3zZ3lPrkTIdhkPzyhjXo_Dx3IdhkPzyhjXoY6m
+
+  - name: PayPal OAuth Secret
+    id: kingfisher.paypal.2
+    pattern: |
+      (?xi)
+      paypal
+      (?:.|[\n\r]){0,16}?              
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?             
+      \b
+      (
+        [A-Z0-9_.-]{78,120}        
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - paypal_secret=EP0uwUsACKVPcbDRaXFYerX2ij6nbsha71cSdynuQWoSt1pIy4qtIs7gJQRmHwKXu5Icv3g1YQZzAywf
+
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api-m.paypal.com/v1/oauth2/token    
+          headers:
+            Accept: application/json
+            Accept-Language: en_US
+            Content-Type: application/x-www-form-urlencoded
+            Authorization: |
+              Basic {{ CLIENTID | append: ':' | append: TOKEN | b64enc }}
+          body: grant_type=client_credentials
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]                                  
+      depends_on_rule:
+        - rule_id: kingfisher.paypal.1
+          variable: CLIENTID

@@ -1,0 +1,45 @@
+rules:
+  - name: MySQL URI with Credentials
+    id: kingfisher.mysql.1
+    pattern: |
+      (?xi)
+      (
+        mysql:\/\/
+        (?:
+          [a-z0-9._%+\-]+
+        )
+        :
+        (?:
+          [^\s:@]+
+        )
+        @
+        (?:
+          \[
+            [0-9a-f:.]+
+          \]
+          |
+          [a-z0-9.-]+
+        )
+        (?::
+          \d{2,5}
+        )?
+        (?:
+          \/
+          [^\s"'?:]+
+        )?
+        (?:
+          \?
+          [^\s"']*
+        )?
+      )
+    pattern_requirements:
+      ignore_if_contains:
+        - "****"
+        - "xxxx"
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - CONNECTION_URI="mysql://nimda:m42p!o@2wd@google.com:3306/elephant"
+      - mysql://user:pass@example.com:4406/app_db?ssl-mode=REQUIRED
+    validation:
+      type: MySQL

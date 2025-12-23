@@ -1,0 +1,38 @@
+rules:
+  - name: ElevenLabs API Key
+    id: kingfisher.elevenlabs.1
+    pattern: |       
+      (?xi)       
+      \b    
+      (               
+        sk_           
+        [0-9a-f]{48}  
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - sk_2a30e5a0d39d5f2c5f6a9d2f95cd016049a6323985479bfd
+      - sk_da9c0613fdeecfab10b302d6f39a3e371f774feb9eafed56
+      - sk_82a331629e2128ef70396600809b6a2ff4e433154fa27e1b
+    references:
+      - https://elevenlabs.io/docs/api-reference/authentication
+      - https://elevenlabs.io/docs/api-reference/user/subscription/get
+
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.elevenlabs.io/v1/user/subscription  
+          headers:
+            xi-api-key: '{{ TOKEN }}'
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              match_all_words: false
+              words:
+                - '"tier"'
+                - '"missing_permissions"'

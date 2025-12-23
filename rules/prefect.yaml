@@ -1,0 +1,33 @@
+rules:
+  - name: Prefect API Token
+    id: kingfisher.prefect.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        pnu_[a-z0-9]{36}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - PREFECT_API_TOKEN=pnu_1234567890abcdef1234567890abcdef1234
+      - '"prefectToken": "pnu_abcdefabcdefabcdefabcdefabcdefabcdef"'
+    references:
+      - https://docs.prefect.io/latest/concepts/api_keys/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.prefect.cloud/api/me/workspaces
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

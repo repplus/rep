@@ -1,0 +1,68 @@
+rules:
+  - name: NuGet API Key
+    id: kingfisher.nuget.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        oy2[a-z0-9]{43}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - oy2er16dp0r068m6p36u4bvr9nmkescfm1pf9lek1bgn3n
+      - oy2gdbfofub9ecpohsfdndem7nr8sui1g8le3ptnljqhlu
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://www.nuget.org/api/v2/package/create-verification-key/Newtonsoft.Json
+          headers:
+            X-NuGet-ApiKey: '{{ TOKEN }}'
+            X-NuGet-Protocol-Version: '4.1.0'
+            Content-Length: '0'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch          
+              status: [200]
+            - type: WordMatch            
+              words: ['"Key":']             
+
+          
+  - name: NuGet API Key
+    id: kingfisher.nuget.2
+    pattern: |
+      (?xi)
+      \b
+      nuget
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-z0-9]{46}
+      )
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - nuget key = af7e33adc0rq7ls6ijcfmb5rgf1gp2o0tqk6d8s5p21k6t
+      - nuget secret dfaru1u13sd58q0kd0edvs4276p2mb6o31eljkvjh8t30u
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://www.nuget.org/api/v2/package/create-verification-key/Newtonsoft.Json
+          headers:
+            X-NuGet-ApiKey: '{{ TOKEN }}'
+            X-NuGet-Protocol-Version: '4.1.0'
+            Content-Length: '0'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch          
+              status: [200]
+            - type: WordMatch           
+              words: ['"Key":']         

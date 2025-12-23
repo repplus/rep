@@ -31,9 +31,11 @@ export function toggleStar(request) {
         }
     }
 
-    // Emit event to refresh list while maintaining scroll position
+    // Only refresh filter if star filter is active, otherwise just update the UI
+    if (state.starFilterActive) {
     const scrollTop = requestList ? requestList.scrollTop : 0;
     events.emit('request:filtered', { preserveScroll: true, scrollTop });
+    }
 }
 
 export function toggleGroupStar(type, hostname, btn) {
@@ -110,6 +112,18 @@ export function deleteGroup(type, hostname, groupElement) {
         state.requests.splice(index, 1);
     });
 
+    // Also drop any blocked (queued) requests belonging to this group
+    const beforeQueue = state.blockedQueue.length;
+    state.blockedQueue = state.blockedQueue.filter(req => {
+        const reqPageHostname = getHostname(req.pageUrl || req.request.url);
+        const reqHostname = getHostname(req.request.url);
+        if (isPage) {
+            return reqPageHostname !== hostname;
+        }
+        return reqHostname !== hostname;
+    });
+    const removedFromQueue = beforeQueue - state.blockedQueue.length;
+
     // Clear starred state for this group
     if (isPage) {
         state.starredPages.delete(hostname);
@@ -167,6 +181,9 @@ export function deleteGroup(type, hostname, groupElement) {
 
     // Emit event to refresh the entire list
     events.emit(EVENT_NAMES.REQUEST_FILTERED);
+    if (removedFromQueue > 0) {
+        events.emit('block-queue:updated');
+    }
     
     // Also emit UI clear event to reset editors if needed
     if (state.selectedRequest === null) {

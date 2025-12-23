@@ -1,0 +1,40 @@
+rules:
+  - name: Tavily API Key
+
+    id: kingfisher.tavily.1
+    pattern: |
+      (?x)
+      \b
+      (
+        tvly-[a-zA-Z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    references:
+      - https://docs.tavily.com/api-reference
+    examples:
+      - "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"
+      - "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"
+      - 'TAVILY_API_KEY = "tvly-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"'
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: "https://api.tavily.com/search"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+            Content-Type: "application/json"
+          body: '{"query": "test"}'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"query":'
+                - '"results":'
+              match_all_words: true

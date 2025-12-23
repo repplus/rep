@@ -1,0 +1,67 @@
+rules:
+  - name: Bitbucket Client ID
+    id: kingfisher.bitbucket.1
+    pattern: |
+      (?xi)
+      \b
+      bitbucket
+      (?:.|[\n\r]){0,16}?
+      (?:client|id)
+      (?:.|[\n\r]){0,16}?
+      ([a-z0-9]{30,40})
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - bitbucket_id=byl2nhrv34zaclukjhvomlvjabkujf
+      - bitbucket.client.ID=abcdefghij1234567890klmnopqrst
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Basic {{ TOKEN | b64enc }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.bitbucket.org/2.0/user
+
+  - name: Bitbucket Secret
+    id: kingfisher.bitbucket.3
+    pattern: |
+      (?xi)
+      \b
+      bitbucket
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-z0-9+_\-+]{44}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - bitbucket_key=HedmnK9h6KD_eh9KK8FlI9ahUc8WfaNZ4gulbrtN2ouV
+      - bitbucket_secret=kd8j2h4jf9s8mf6l4k9j2h4jf9s8mf6l4k9j2h4jf9s8
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.bitbucket.org/2.0/user

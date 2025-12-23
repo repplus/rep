@@ -1,0 +1,41 @@
+rules:
+  - name: Mandrill API Key
+    id: kingfisher.mandrill.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      mandrill
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                     
+      (                      
+        (?:[0-9A-Z_-]{11}){2}
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - mandrill_token = taqnVL1P5AJrM4oU4opSqQ
+    categories:
+      - api
+      - identifier
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          headers:
+            Content-Type: application/json
+          body: |
+            { "key": "{{ TOKEN }}" }
+          url: https://mandrillapp.com/api/1.0/users/ping.json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"PONG!"']

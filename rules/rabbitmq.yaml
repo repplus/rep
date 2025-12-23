@@ -1,0 +1,41 @@
+rules:
+  - name: RabbitMQ Credential
+    id: kingfisher.rabbitmq.1
+    pattern: |
+      (?xi)
+      (?:
+        amqps?
+      )
+      :\/\/
+      [\S]{3,50}
+      :
+      (
+        [\S]{3,50}
+      )
+      @
+      [-.%\w\/:]+
+      \b
+    pattern_requirements:
+      min_special_chars: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - amqp://user:password@rabbitmq.example.com/queue
+      - amqps://admin:3eCa3P@192.168.1.10:5671/vhost
+    # validation:
+    #   type: Http
+    #   content:
+    #     request:
+    #       url: '{{ URL }}'
+    #       headers:
+    #         Custom-header: '{{ TOKEN }}'
+    #       method: GET
+    #       response_matcher:
+    #         - report_response: true
+    #         - status:
+    #             - 200
+    #           type: StatusMatch
+    #         - report_response: true
+    #         - type: WordMatch
+    #           words:
+    #             - '"connected":true'

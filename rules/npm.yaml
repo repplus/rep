@@ -1,0 +1,72 @@
+rules:
+  - name: NPM Access Token (fine-grained)
+    id: kingfisher.npm.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        npm_(?P<body>[A-Za-z0-9]{30})(?P<checksum>[A-Za-z0-9]{6})
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      checksum:
+        actual:
+          template: "{{ MATCH | suffix: 6 }}"
+          requires_capture: checksum
+        expected: "{{ BODY | crc32 | base62: 6 }}"
+        skip_if_missing: true
+    references:
+      - https://docs.npmjs.com/about-access-tokens
+      - https://github.com/github/roadmap/issues/557
+      - https://github.blog/changelog/2022-12-06-limit-scope-of-npm-tokens-with-the-new-granular-access-tokens/
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "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"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch                               
+              words: ['"name":']
+          url: https://registry.npmjs.org/-/npm/v1/user 
+
+  - name: NPM Access Token (old format)
+    id: kingfisher.npm.2
+    pattern: |
+      (?xi)
+      (?:_authToken|NPM_TOKEN)
+      (?:.|[\n\r]){0,16}?
+        (                                  
+          [0-9A-F]{8}                    
+          (?:-[0-9A-F]{4}){3}       
+          -[0-9A-F]{12}                     
+        )  
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - '"_authToken": "b98ec224-cdb2-4340-b7bd-9617fc719d1d"'
+      - '-export NPM_TOKEN="007e64c7-635d-4d54-8295-f364cd8e0e0f"'
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch                               
+              words: ['"name":']
+          url: https://registry.npmjs.org/-/npm/v1/user 

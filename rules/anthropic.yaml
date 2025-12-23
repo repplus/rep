@@ -1,0 +1,49 @@
+rules:
+  - name: Anthropic API Key
+    id: kingfisher.anthropic.1
+    pattern: |
+      (?xi)
+      (
+        sk-ant-api
+        \d{2,4}
+        -
+        [\w\-]{93}
+        AA
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1    
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - sk-ant-api668-Clm512odot9WDD7itfUU9R880nefA1EtYZDbpE-C9b0XQEWpqFKf9DQUo03vOfXl16oSmyar1CLF1SzV3YzpZJ6bahcpLAA
+    references:
+      - https://docs.anthropic.com/claude/reference/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          body: |
+            {
+              "model": "claude-3-haiku-20240307",
+              "max_tokens": 1024,
+              "messages": [
+                {"role": "user", "content": "respond only with 'success'"}
+              ]
+            }
+          headers:
+            Content-Type: application/json
+            anthropic-version: "2023-06-01"
+            x-api-key: '{{ TOKEN }}'
+          method: POST
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"type":"message"'
+          url: https://api.anthropic.com/v1/messages

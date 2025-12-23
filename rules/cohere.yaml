@@ -1,0 +1,41 @@
+rules:
+  - name: Cohere API Key
+    id: kingfisher.cohere.1
+    pattern: |
+      (?xi)
+      \b
+      cohere
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        [A-Z0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - 'cohere_key = 5fNtU1ytdUcOX3jfvgjlr61EPxBqxOojOklDD6BG'
+      - "cohere secret key = QfsfCM0HdHH9x5ZlhsGzeignSk4pCeBwBrzYqgGV"
+      - 'cohere_token: x7PX0fac8a2GW2fgnNqdtqIwMQvFbrL6E7lKrKOv'
+    references:
+      - https://docs.cohere.com/reference/list-connectors
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.cohere.com/v1/connectors
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"connectors"'
+                - '"total_count"'

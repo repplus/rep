@@ -1,0 +1,94 @@
+rules:
+  - name: Confluent Client ID
+    id: kingfisher.confluent.1
+    pattern: |
+      (?xi)
+      \b(?:confluent|ccloud|cpdev|kafka)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{16}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3
+    confidence: medium
+    visible: false
+    examples:
+      - confluent client_id=ABCD1234EFGH5678
+      - kafka_client=WXYZ9876MNOP5432
+    references:
+      - https://docs.confluent.io/cloud/current/access-management/authenticate/api-keys.html
+  - name: Confluent API Secret
+    id: kingfisher.confluent.2
+    pattern: |
+      (?xi)
+      (?:confluent|ccloud|cpdev|kafka)
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9\+/]{64}
+      )
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - confluent secret=cbadefghijklmnopqrstuvwxyzcbaDEFGHIJKLMNOPQRSTUVWXYZ3214567890ab
+      - kafka_token=cbaDEFGHIJKLMNOPQRSTUVWXYZ3214567890cbadefghijklmnopqrstuvwxyzAB
+    references:
+      - https://docs.confluent.io/cloud/current/api.html#tag/API-Keys-(iamv2)/operation/getIamV2ApiKey
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Basic {{ CLIENTID | append: ":" | append: TOKEN | b64enc }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.confluent.cloud/iam/v2/api-keys/{{ CLIENTID }}
+    depends_on_rule:
+      - rule_id: "kingfisher.confluent.1"
+        variable: CLIENTID
+  - name: Confluent API Secret - Updated Format
+    id: kingfisher.confluent.3
+    pattern: |
+      (?xi)
+      \b
+      (
+        cflt(?P<body>[A-Za-z0-9\+/]{54})(?P<checksum>[A-Za-z0-9\+/]{6})
+      )
+    pattern_requirements:
+      checksum:
+        actual:
+          template: "{{ MATCH | suffix: 6 }}"
+          requires_capture: checksum
+        expected: "{{ BODY | crc32_le_b64: 6 }}"
+        skip_if_missing: true
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - confluent secret=cfltqPLd2lLPAtWtHGNhN32WlZxoEj30pcg8mzaPlPJ937JlMa7n9YCRLooqgifw
+    references:
+      - https://docs.confluent.io/cloud/current/api.html#tag/API-Keys-(iamv2)/operation/getIamV2ApiKey
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Basic {{ CLIENTID | append: ":" | append: TOKEN | b64enc }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.confluent.cloud/iam/v2/api-keys/{{ CLIENTID }}
+    depends_on_rule:
+      - rule_id: "kingfisher.confluent.1"
+        variable: CLIENTID

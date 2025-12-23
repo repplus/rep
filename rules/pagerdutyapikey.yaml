@@ -1,0 +1,45 @@
+rules:
+  - name: PagerDuty API Key
+    id: kingfisher.pagerduty.1
+    pattern: |
+      (?xi)                                                     
+      (?: 
+          pd[_-]? |
+          pagerduty[_-]? |
+          pagerduty
+      )
+      \W{0,20}
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?         
+      \b            
+      (                                                          
+        u\+[A-Z0-9_+-]{18}         |  # personal user token (20 chars)
+        [A-Z0-9_-]{20}             |  # legacy PAT (20 chars, mixed case)
+        [a-f0-9]{32}                  # integration / routing key (32 hex, lower case)
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - "pagerduty: Token token=u+Lyhd2_N2MCy+ZoH-S5"
+      - pd_key = u+3xVszZ-b4m+T6d23KA
+      - pagerduty token=ABCDEF1234567890ABCDEF1234567890
+    references:
+      - https://developer.pagerduty.com/api-reference/4555ca1c983d0-get-the-current-user
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.pagerduty.com/users
+          headers:
+            Authorization: Token token={{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: JsonValid
+            - type: WordMatch
+              words:
+                - '"users":'

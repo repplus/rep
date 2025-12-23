@@ -1,0 +1,33 @@
+rules:
+  - name: Hardcoded Gradle Credentials
+    id: kingfisher.gradle.1
+    pattern: |
+      (?xi)
+      credentials \s* \{
+        (?:\s*//.*)*
+        \s* (?:username|password) \s ['"]([^'"]{1,60})['"]
+        (?:\s*//.*)*
+        \s* (?:username|password) \s ['"]([^'"]{1,60})['"]
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        credentials {
+            username 'user'
+            password 'password'
+        }
+      - |
+        publishing {
+          repositories {
+              maven {
+                  url "http://us01cmsysart01.example.com:8081/artifactory/Mobile-Libs-Internal"
+                  credentials {
+                      // your password here
+
+                      username "SOME_USERNAME"
+                      password "SOME_PASSWORD"
+                  }
+              }
+          }
+      - "credentials {\n  username 'user'\n  password 'password'\n}"
+      - "credentials {\n  username \"user\"\n  password \"password\"\n}"

@@ -1,0 +1,131 @@
+rules:
+  - name: AWS Access Key ID
+    id: kingfisher.aws.1
+    pattern: |
+      (?xi)             
+      \b
+      (
+        (?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)
+        [2-7A-Z]{16}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      ignore_if_contains:
+        - "EXAMPLE"
+        - "TEST"
+    min_entropy: 3.2
+    visible: false
+    confidence: medium
+    examples:
+      - ASIAOZW6VBVAZFJHJLQA
+
+  - name: AWS Secret Access Key
+    id: kingfisher.aws.2
+    pattern: |
+      (?xi)
+      (?:
+        \b
+        (?:AWS|AMAZON|AMZN|A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)
+        (?:.|[\n\r]){0,64}?
+        [^A-Za-z0-9_+!@\#$%^&*()\]./]
+        ([A-Za-z0-9/+]{40})
+        [^A-Za-z0-9_+!@\#$%^&*()\]./]
+      |
+        \b(?:AWS|AMAZON|AMZN|A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)
+        (?:.|[\n\r]){0,96}?
+        (?:SECRET|PRIVATE|ACCESS)
+        (?:.|[\n\r]){0,16}?
+        (?:KEY|TOKEN)
+        (?:.|[\n\r]){0,64}?
+        \b
+        ([A-Za-z0-9/+]{40})
+        \b
+      )
+    pattern_requirements:
+      min_digits: 3
+      ignore_if_contains:
+        - "EXAMPLE"
+        - "TEST"
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - foo.backup.archive.aws.secretkey=sBmHlDFrNcsz35N+LRjwlUxF8/wypT4tiJCQ0wP4
+      - '"awsSecretKey":"3lyTWqHMt5UySny2drdPYheRTEzrNux8Cn5JWFHL"'
+      - '"\"awsSecretKey\":\"3lyTWqHMt5UySny2drdPYheRTEzrNux8Cn5JWFHL\"," +'
+      - |
+        "Whiteboard" : {
+          "type" : "aws-s3",
+          "config" : {
+            "accessKeyId" : "AKIAIVOURJN3SXRRLZFQ",
+            "region" : "us-east-1",
+            "secretAccessKey" : "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"
+          },
+    validation:
+      type: AWS
+    depends_on_rule:
+      - rule_id: kingfisher.aws.1
+        variable: AKID
+
+  - name: AWS Session Token
+    id: kingfisher.aws.4
+    pattern: '(?i)(?:aws.?session|aws.?session.?token|aws.?token)["''`]?\s{0,30}(?::|=>|=)\s{0,30}["''`]?([a-z0-9/+=]{16,200})[^a-z0-9/+=]'
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        export AWS_ACCESS_KEY_ID="I08BCX2ACV45ED1DOC9J"
+        export AWS_SECRET_ACCESS_KEY="0qk+o7XctJMmG6ydO8537c9+TofLJU1K0PiVBXSg"
+        export AWS_SESSION_TOKEN="eyJhbGciOiJIUzUxMi53InR5cCI6IkpXVCJ9.eyJhY2Nlc3NLZXkiOiJJMDhCQ1gySkpWNDVFRDFET0M5SiIsImFjciI6Ij53LCJhdWQiOiJhY2NvdW50IiwiYXV0aF90aW1lIjowLCJhenAiOiJtaW5pbyIsImVtYWlsIjoiYWlkYW4uY29wZUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImV4cCI6MTU4MDUwMDIzOCwiZmFtaWx5X25hbWUiOiJDb3BlIiwiZ2l2ZW5fbmFtZSI6IkFpZGFuIENvcGUiLCJpYXQiOjE1ODA0OTk5MzgsImlzcyI6Imh0dHBzOi8vYXV0aHN0Zy5wb3BkYXRhLmJjLmNhL2F1dGgvcmVhbG1zL3NhbXBsZSIsImp0aSI6IjU5ZTM5ODAxLWQxMmUtNDVhYS04NmQzLWVhMmNmZDU0NmE2MiIsIm1pbmlvX3BvbGljeSI6ImRhdGFzZXRfMV9ybyIsIm5hbWUiOiJBaWRhbiBDb3BlIENvcGUiLCJuYmYiOjAsInByZWZlcnJlZF91c2VybmFtZSI6ImFjb3BlLTk5LXQwNSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJwcm9maWxlIGVtYWlsIiwic2Vzc2lvbl9zdGF0ZSI6IjcxYjczZWJjLThlMzMtNGMyMi04NmE2LWI0MzhhNDM4ZmI2MiIsInN1YiI6IjVkOTBlOTgzLTA1NDItNDYyYS1hZWIwLWYxZWVmNjcwYzdlNSIsInR5cCI6IkJlYXJlciJ9.J-a9PORJToz7MUrnPQlOywcqtVMNkXy53Gedp_V4PW-Gbf1_BAMjwuw_X7fKRd6hkNfEn43CKKju7muzi_d1Ig"
+  - name: AWS Bedrock API Key (Long-lived)
+    id: kingfisher.aws.bedrock.long_lived
+    pattern: |
+      (?x)
+      (
+        ABSKQmVkcm9ja0FQSUtleS[A-Za-z0-9+/=]{110}
+      )
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - "ABSKQmVkcm9ja0FQSUtleS1GU9MjAyNTEyMDVUMjE1MTUxWiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPUlRb0piM0pwWjJsdVgyVmpFSjclMk"
+    references:
+      - https://aws.amazon.com/blogs/security/securing-amazon-bedrock-api-keys-best-practices-for-implementation-and-management/
+      - https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-how.html
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://bedrock.us-east-1.amazonaws.com/foundation-models
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+
+  - name: AWS Bedrock API Key (Short-lived)
+    id: kingfisher.aws.6
+    pattern:  |
+      (?x)
+      (
+        bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29t[A-Za-z0-9+/]+={0,2}
+      )
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - "AWS_BEARER_TOKEN_BEDROCK=bedrock-api-key-YmVkcm9jay5hbWF6b25hd3MuY29tLz9BY3Rpb249Q2FsbFdpdGhCZWFyZXJUb2tlbiZYLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFTSUFWRzRBNFpCSk5YUzRJSEZTJTJGMjAyNTEyMDUlMkZ1cy1lYXN0LTElMkZiZWRyb2NrJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNTEyMDVUMjE1MTUxWiZYLUFtei1FeHBpcmVzPTQzMjAwJlgtQW16LVNlY3VyaXR5LVRva2VuPUlRb0piM0pwWjJsdVgyVmpFSjclMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkYlMkZ3RWFDWFZ6TFdWaGMzUXRNU0pITUVVQ0lRQ1Z1dkhPTmZLMHVxY3lPeUhibkJ5SUlRQnl3Sm9RV2VTRko4RlclMkIyNkxGQUlnUXJXSU9SbWd1bUozd3ZxTElMZVJ4SXczYzglMkIxaUJ2U1E0R1d6T21rY2VNcTN3UUlaeEFBR2d3ek5UZ3pOak15TWpBd05UQWlEQ05ZYkhtZVVTOE01Rjl6MGlxOEJOOWg4TEZLd0tqTHJDdzZ1eUVDYTd3YjFDbnpGQndyVlFkSXFPU0ZrNWJGbHg5Sjc0cnJ2TjNCYUZQOHR2S3lQcnJCeUJ3bGU3dTIwRjBXVDJoWHlQVTM4cUtpRDclMkZzaTNydnFkT2ptR3pNdERuazRHbEpEN3ZnM01SMWd3cFZJM2Z5ZjU0WU5aZ0lWcm9RZ1g4UVZ4aGNZeHNuSEx6Y3llelh1aGZWbElRMk1LVXUyOTh0c2NqcnF3aEs3WmMlMkZ0Mjc5TWRvengzVkFveUgzdFpocE9oVHhud1VkMHRtQ3REOU5QNHdIN1pOQjRIR2xaZWtidjBoUGIxV012azlhVGF2QkRUZlFCcERueEFHVG5KbXpicm8lMkJod2M0SDB5Skwwb1lVbGplalB3JTJCRVY4ZlJzU3hrVUliOHVRTWRBNDdhUmFzNGpPWkwzZVRlNTdvUXI1Rlo1ekJLJTJGdzBmc1p3RlY5JTJGMTE5Mzc3S2huSnFPRTMxdjBRJTJGYWV1YVk5YThIZnFVNlZ4MD14cVIyM1VxUExxaUVhUnJiTXlQSjVHRUdNSzk0RG5zMDF5cmFjNzU5UGF2Zko2QnpjaEFPSklJeFdXeXBiYmY4dUJKYTdyTldOQUF6S1R4NHFSVm9VdHljS2txciUyQlFyajZ2b1NNOHBoJTJCRnpZOXFEJTJCaCUyQkNEbkk4M0xMRDRkVnJVN0Jla05QbjNXSFpEN0twRVdVZWJ1UlpoZGVNSVU4R0hVVlpGa3FCV3Q0djk5QVdNdlFydEFJVzlHUWN3UkhZM3FaMFo2ZHI3cHpIOGNoZWRyMWdyJTJGUnBkT3lBdFIlMkZ3OE9HeU1LeklaSzRBdTZVeEhRaGdOVjJKdDh0ZnFVSlNCS281UVhiV1RmakFSNFlQSFcwbEREaEtRTTZYWWJsJTJGY0hSM3pIMG1WMGUyc92OJTJGVTJTc1Q3MVhCb1Z1Y2d3WU56RXFkM2M0ZUZzdjFaelBTQ2lMVWUyaDhPZTI5Q0F2VHF5eEZBTUFaMVpKNyUyRk5MSzVRSldNT09uemNrR09zTUNqQXhOVFdXUXdMUjd5NmR2TlMzQmh6UVlMJTJGeXpJWEdaVnhZYm9mY3IlMkJLbCUyRnVveSUyQkFlWCUyRkxLaXFwWDk5RWc2cSUyQm1tazNIZ1Q0WWNueVU4VW5Ya2FxMUNxcXVFVVBuRllyMklpbE1UYjlIOUVzanJMRDU4TnBhSTB2OENxNUVRQkIlMkZLMUtkMDdzRks5V1B6cTZaeCUyQmZEVjdYZ0NobG41UDZxQjBFJTJGem5QenRTRWNHMlViS0pHaE4yWjZ2TGtQOVU0STJQODk5WFF4enhVSUIxOTAzUWhjcGp3cGRDN2ZZWEZZVkxqS253bTFiRGlMdFIxMTVnbUpoSUVUM3NheE5zUnpSQkIlMkZjWlMwY1FiTm1wUSUyQldrbXo4ekdXUkc1ZTc1cGclMkY1dUVRMW5aN1ZGTk95UTg1M2Jrb0ZLM0lnNzR3MUpPQllPemlYTVI3ZDF6MSUyRkFNa3hQYWFrWE5YWEd2Z3BsaldBYlR1Wm5Jb1N6UFdEcWIlMkZRaFowUWNxM1JaSm1JdUhTd05oaWs2SFJiZ0NvQUlHZ2sxR21iZUZXZDRoZlhVZWNDOUxvcExzRzEzbUklM0QmWC1BbXotU2lnbmF0dXJlPTU4NTk1MjRjN2RlNGZjMWQ1ODlmZmViOTVlYWI5N2NhYjRmNTQyYWY2MmVkOGExMGYyYzlhZDYyZDQ5ZWY3ODkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JlZlcnNpb249MQ=="
+    references:
+      - https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-how.html
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://bedrock.us-east-1.amazonaws.com/foundation-models
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]

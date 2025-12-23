@@ -1,0 +1,40 @@
+rules:
+  - name: OpsGenie API Key
+    id: kingfisher.opsgenie.1
+    pattern: |
+      (?xi)
+      \b
+      opsgenie
+      (?:.|[\\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - opsgenie_api_key = '12345678-9abc-def0-1234-56789abcdef0'
+    references:
+      - https://docs.opsgenie.com/docs/api-overview
+      - https://support.atlassian.com/security-and-access-policies/docs/send-alerts-to-opsgenie/
+      - https://support.atlassian.com/opsgenie/docs/european-service-region/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.opsgenie.com/v2/alerts
+          headers:
+            Authorization: "GenieKey {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [401, 403]
+              negative: true
+            - type: WordMatch
+              words: ["Could not authenticate", "is not valid"]
+              negative: true

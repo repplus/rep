@@ -1,0 +1,35 @@
+rules:
+  - name: Finnhub API Token
+    id: kingfisher.finnhub.1
+    pattern: |
+      (?xi)
+      \b
+      finnhub
+      (?:.|[\n\r]){0,24}?
+      \b
+      (
+        [a-z0-9]{20}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - FINNHUB_API_KEY=cd3f1a2b3c4d5e6f7a8b
+      - '"finnhubToken": "9b8a7c6d5e4f3a2b1c0d"'
+    references:
+      - https://finnhub.io/docs/api
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://finnhub.io/api/v1/stock/profile2?symbol=MDB&token={{ TOKEN }}
+          headers:
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

@@ -1,0 +1,21 @@
+rules:
+  - name: Gitalk OAuth Credentials
+    id: kingfisher.gitalk.1
+    pattern: |
+      (?x)
+      \b
+      new \s+ Gitalk \s* \( \s* \{ \s*
+        clientID: \s* '([a-f0-9]{20})', \s*
+        clientSecret: \s* '([a-f0-9]{40})',
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    references:
+      - https://gitalk.github.io
+      - https://github.com/gitalk/gitalk
+    examples:
+      - |
+        new Gitalk({
+          clientID: 'd17d49be2e680b78a83d',
+          clientSecret:'9363cb456dda6402cb71d65092490e75c9f11873',

@@ -1,0 +1,43 @@
+rules:
+  - name: Vercel API Token
+    id: kingfisher.vercel.1
+    pattern: |
+      (?xi)
+      \b
+      vercel
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{24}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 6
+      min_uppercase: 1
+      min_lowercase: 1
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.vercel.com/v2/user
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"user":'
+                - '"email":'
+              match_all_words: true
+    references:
+      - https://vercel.com/docs/rest-api#authentication
+    examples:
+      - "vercel-key = DdZV6ZDZW6Vpl7n7JqtrCE5i"
+      - "vercel_token = zyMBA1qVEMAf4UNNZtCAbg6u"
+      - "vercel_api_key = MTg0AW799OY1HmyDdn84or3C"
+      - "vercel_secret = A7n9Xfp3tBz7D0XpOTMWpiOM"

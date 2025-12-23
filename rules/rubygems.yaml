@@ -1,0 +1,38 @@
+rules:
+  - name: RubyGems API Key
+    id: kingfisher.rubygems.1
+    pattern: |
+      (?x)                   
+      (?i)                   
+      \b                     
+      (                      
+        rubygems_
+        [a-z0-9]{42,52}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2      
+    min_entropy: 3.5
+    confidence: medium
+    categories: [api, secret]
+    references:
+      - https://guides.rubygems.org/rubygems-org-api/
+      - https://guides.rubygems.org/api-key-scopes/
+    examples:
+      - |
+        $ curl -H 'Authorization:rubygems_b9ce70c306b3a2e248679fbbbd66723d408d3c8c5f00566c' \
+               https://rubygems.org/api/v1/web_hooks.json
+      - 'apikey: rubygems_123abc01a15f32b0be0103de4c9b3dcb3f2fea0fa8a84f23'
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://rubygems.org/api/v1/web_hooks.json

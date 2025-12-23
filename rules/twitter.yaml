@@ -1,0 +1,96 @@
+rules:
+  - name: X / Twitter Bearer Token (App-only)
+    id:   kingfisher.twitter.1
+    pattern: |
+      (?xi)           
+      \b                       
+      (?:twitter|x.com|twtr)?
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN|BEARER)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (                                      
+        A{10,}[A-Za-z0-9_\-]{40,200}         
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - "Twitter Secret: Bearer AAAAAAAAAAAAAAAAAAAb342O1ksbnZiwemJv0g9LrF6cRazflLJEDbmmuAr8GQbDkDrYHoqPM1xr8tmP5LGW1Vq_soJIsolxqOXtAPA2hUGXIBYubxWPLVZkUs7jYBizqlDRDSHRGXKP2nuCzdbNlxKcgMQzrm"
+      - TWITTER_BEARER="AAAAAAAAAAAAAAxrrTSuijZNLygaTAEMAc_iY1nOdFRc1OP4fpMZiEkTQ4D-QaCvOhvBvpu5zwH67VvwE9MlmL78ptDdFP_FX6fgcJnQOcvsedOXNP9t3D1fYkJcJT3kXldAIJJ"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.x.com/1.1/application/rate_limit_status.json
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"rate_limit_context"']
+              match_all_words: true
+    references:
+      - https://developer.x.com/en/docs/x-api/v1/developer-utilities/rate-limit-status/api-reference/get-application-rate_limit_status
+  - name: Twitter Consumer Key
+    id: kingfisher.twitter.2
+    pattern: |
+      (?xi)
+      \b
+      twitter
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [A-Z0-9]{25}
+      )
+    min_entropy: 3.5
+    visible: false
+    examples:
+      - "TWITTER_KEY=4RTBCyG2TbvL407A1lWxQFKCC"
+  - name: X / Twitter Consumer Secret
+    id: kingfisher.twitter.3
+    pattern: |
+      (?xi)
+      \b
+      twitter
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [A-Z0-9]{50}
+      )
+    min_entropy: 4.0
+    examples:
+      - "TWITTER_SECRET=ZGwXeK2DNCqv49Z9ofwYdqlBgeoHDyh8uoAgHju6OeYC7wTQJq"
+    references:
+          - https://developer.x.com/en/docs/authentication/oauth-2-0/application-only
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.twitter.com/oauth2/token
+          headers:
+            Authorization: "Basic {{ TWITTER_KEY | append: ':' | append: TOKEN | b64enc }}"
+            Content-Type: "application/x-www-form-urlencoded;charset=UTF-8"
+          body: "grant_type=client_credentials"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"token_type":"bearer"'
+                - '"access_token":'
+              match_all_words: true
+    depends_on_rule:
+      - rule_id: "kingfisher.twitter.2"
+        variable: TWITTER_KEY

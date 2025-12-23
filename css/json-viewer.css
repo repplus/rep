@@ -1,0 +1,148 @@
+/*** JSON Viewer Styles ***/
+
+.json-formatter-container {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-width: 100%;
+}
+
+.json-string {
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+.json-line {
+    margin-left: 20px;
+    position: relative;
+}
+
+.json-object, .json-array {
+    position: relative;
+}
+
+.json-toggle {
+    cursor: pointer;
+    position: absolute;
+    left: -15px;
+    top: 2px;
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    user-select: none;
+}
+
+.json-toggle::before {
+    content: '▶';
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+.dark-theme .json-toggle::before {
+    color: #888;
+}
+
+.json-object.expanded > .json-toggle::before,
+.json-array.expanded > .json-toggle::before {
+    transform: rotate(90deg);
+}
+
+.json-content {
+    display: none;
+}
+
+.json-object.expanded > .json-content,
+.json-array.expanded > .json-content {
+    display: block;
+}
+
+.json-ellipsis, .json-item-count {
+    display: none;
+}
+
+.json-object.collapsed > .json-ellipsis,
+.json-array.collapsed > .json-ellipsis,
+.json-object.collapsed > .json-item-count,
+.json-array.collapsed > .json-item-count {
+    display: inline;
+    color: #999;
+    font-style: italic;
+    margin: 0 5px;
+}
+
+.json-object.collapsed > .json-punctuation:last-child,
+.json-array.collapsed > .json-punctuation:last-child {
+    display: inline;
+}
+
+.json-object.expanded > .json-punctuation:first-of-type,
+.json-array.expanded > .json-punctuation:first-of-type {
+    display: inline;
+}
+
+.json-object.expanded > .json-punctuation:last-child,
+.json-array.expanded > .json-punctuation:last-child {
+    display: block;
+    margin-left: 0;
+}
+
+.json-toggle:hover::before {
+    color: #8ab4f8;
+}
+
+.dark-theme .json-toggle:hover::before {
+    color: #fff;
+}
+
+/* Warning for non-JSON content */
+
+.json-invalid-warning {
+    padding: 0;
+    margin: 0;
+}
+
+.json-warning-bar {
+    background: #cd4848;
+    color: #fff;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.dark-theme .json-warning-bar {
+    background: #cd4848;
+    color: #fff;
+}
+
+.json-warning-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.json-warning-text {
+    flex: 1;
+}
+
+.json-raw-content {
+    margin: 0;
+    padding: 10px;
+    background: transparent;
+    color: inherit;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}

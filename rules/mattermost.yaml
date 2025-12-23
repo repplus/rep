@@ -1,0 +1,68 @@
+rules:
+  - name: Mattermost URL
+    id: kingfisher.mattermost.1
+    pattern: |
+      (?xi)
+      \b
+      mattermost
+      (?:.|[\n\r]){0,32}?
+      (
+        https?:\/\/[a-z0-9.-]+
+        (?::\d{2,5})?
+        (?:\/[A-Za-z0-9._~\-\/]*)?
+      )
+      \b
+    confidence: medium
+    visible: false
+    min_entropy: 2.0
+    examples:
+      - mattermost_url = "https://community.mattermost.com"
+      - mattermost_url='http://localhost:8065'
+      - 'mattermost_url: https://intra.example.com/mattermost'
+
+  - name: Mattermost Access Token
+    id: kingfisher.mattermost.2
+    pattern: |
+      (?xi)
+      \b
+      mattermost
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{26}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    examples:
+      - "mattermost_token: abcde12345fghij67890klmno1"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          # Normalize any captured base that already includes /api/v4
+          url: >
+            {%- assign base = MATTERMOST_URL | replace: "/api/v4/", "/" | replace: "/api/v4", "" -%}
+            {{ base }}/api/v4/users/me
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+            - type: WordMatch
+              words: ['"id"', '"username"']
+              match_all_words: true
+    depends_on_rule:
+      - rule_id: "kingfisher.mattermost.1"
+        variable: MATTERMOST_URL
+    references:
+      - https://developers.mattermost.com/api-documentation/
+      - https://developers.mattermost.com/integrate/faq/

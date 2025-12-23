@@ -1,0 +1,26 @@
+rules:
+  - name: Voyage AI API Key
+    id: kingfisher.voyageai.api_key
+    description: Detects Voyage AI API keys used for embedding and retrieval models.
+    # Matches keys starting with 'pa-' followed by 43 URL-safe base64 characters
+    pattern: |
+      (?x)
+      (
+        pa-[a-zA-Z0-9\-_]{43}
+      )
+      \b
+    min_entropy: 4.0
+    confidence: high
+    examples:
+      - pa-r4yuCYCuPhNO-10Lu9aO7dR4jxUWlLmlUjm_NOVVdSs
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.voyageai.com/v1/files
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]

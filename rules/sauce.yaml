@@ -1,0 +1,82 @@
+rules:
+  - name: Sauce Labs Username
+    id: kingfisher.saucelabs.1
+    pattern: |
+      (?xi)
+      \b
+      sauce
+      (?:.|[\n\r]){0,16}?
+      (?:USER|ID|NAME|CLIENT|OAUTH)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        [A-Z0-9_.-]{2,70}
+      )
+      \b
+    confidence: medium
+    visible: false
+    min_entropy: 1.0
+    examples:
+      - "SAUCE_USERNAME=oauth-someusername-487ea"
+      - SAUCE_USERNAME="oauth-ci-bot-487ea"
+      - '"sauce_username":"build-user"'
+      - 'saucelabs user oauth-release-bot'
+  - name: Sauce Labs API Endpoint
+    id: kingfisher.saucelabs.2
+    pattern: |
+      (?xi)
+      (
+        (?:api|ondemand)\.(?:us|eu)-(?:west|east|central)-[0-9]\.saucelabs\.com
+      )
+      \b
+    confidence: medium
+    visible: false
+    min_entropy: 2.0
+    examples:
+      - "api.us-west-1.saucelabs.com"
+      - "api.eu-central-1.saucelabs.com"
+      - "ondemand.eu-central-1.saucelabs.com"
+
+  - name: Sauce Labs Access Key
+    id: kingfisher.saucelabs.3
+    pattern: |
+      (?xi)
+      \b
+      sauce
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 4
+    confidence: medium
+    min_entropy: 3.0
+    depends_on_rule:
+      - rule_id: "kingfisher.saucelabs.1"
+        variable: SAUCE_USERNAME
+      - rule_id: "kingfisher.saucelabs.2"
+        variable: SAUCE_URL
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://{{ SAUCE_URL | default: 'api.us-west-1.saucelabs.com' | replace: 'ondemand.', 'api.' }}/rest/v1/users/{{SAUCE_USERNAME}}"
+          headers:
+            Authorization: "Basic {{ SAUCE_USERNAME | append: ':' | append: TOKEN | b64enc }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"username":'
+    references:
+      - https://docs.saucelabs.com/dev/api/
+      - https://docs.saucelabs.com/dev/api/#authentication
+    examples:
+      - "SAUCE_ACCESS_KEY=1736468d-b178-39cd-bfde-30fabdc371e4"
+

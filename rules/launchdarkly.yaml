@@ -1,0 +1,34 @@
+rules:
+  - name: LaunchDarkly Access Token
+    id: kingfisher.launchdarkly.1
+    pattern: |
+      (?xi)
+      launchdarkly
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-z0-9_\-=]{40}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.2
+    confidence: medium
+    examples:
+      - LAUNCHDARKLY_TOKEN=api-123abc456def789ghi012jkl345mno678pqr
+      - '"launchdarkly": "ld-abcdefghijklmno1234567890pqrstuvwxzab"'
+    references:
+      - https://docs.launchdarkly.com/sdk/api/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://app.launchdarkly.com/api/v2/members
+          headers:
+            Authorization: '{{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

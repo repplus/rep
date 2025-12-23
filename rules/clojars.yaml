@@ -1,0 +1,41 @@
+rules:
+  - name: Clojars Username
+    id: kingfisher.clojars.1
+    pattern: |
+      (?xi)
+      \b
+      clojars
+      (?:.|[\n\r]){0,32}?
+      (?:ID|USER)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        [a-z0-9_-]{3,}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 1.5
+    visible: false
+    examples:
+      - "clojars_user = my-username"
+
+  - name: Clojars API Token
+    id: kingfisher.clojars.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        CLOJARS_[a-z0-9]{60}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    examples:
+      - "CLOJARS_7a0b5c647fdca75616e99a5629ba28955e53faf6391b1b4461ccd972b0e2"
+    references:
+      - https://github.com/clojars/clojars-web/wiki/API
+      - https://github.com/clojars/clojars-web/wiki/Tutorial-for-library-authors

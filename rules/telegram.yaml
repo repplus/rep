@@ -1,0 +1,34 @@
+rules:
+  - name: Telegram Bot Token
+    id: kingfisher.telegram.1
+    pattern: |
+      (?xi)
+      \b
+      (?:telegram|tgram:)
+      (?:.|[\n\r]){0,32}?
+      (
+          [0-9]{7,10}
+          :
+          [A-Z0-9_-]{35}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.telegram.org/bot{{TOKEN}}/getMe"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"ok":true'
+    examples:
+      - "tgram://110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsawd"
+      - "telegram: 508627689:AAEuLPKs-EhrjrYGnz60bnYNZqakf6HJxc0"
+      - "telegram token is 3628091811:BAG9RuJiqgOGIfFbOPBpAo6QhIJoD9mCdDs"

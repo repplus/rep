@@ -1,0 +1,67 @@
+rules:
+  - name: Alibaba Access Key ID
+    id: kingfisher.alibabacloud.1
+    pattern: |
+      (?xi)
+      (
+        LTAI[a-z0-9]{17,21}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 4.0
+    confidence: medium
+    visible: false
+    examples:
+      - LTAI8x2NiGqfyJGx7eLDhp12
+      - LTAI5GqyJGhp12ad31L5hpix
+  - name: Alibaba Access Key Secret
+    id: kingfisher.alibabacloud.2
+    pattern: |
+      (?xi)
+      \b
+      alibaba
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-z0-9]{30}
+      )
+    min_entropy: 4.2
+    confidence: medium
+    examples:
+      - alibaba_secret = 7jkWdTjKLnSlGddwPR5gBn65PHcZG6
+      - alibaba-token = aJHKLnSlGddwPR5g7jkWdTBn65PHc5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: >
+            {%- assign nonce = "" | uuid | upcase -%}
+            {%- assign raw_timestamp = "" | iso_timestamp_no_frac -%}
+            {%- assign timestamp = raw_timestamp | replace: ":", "%3A" -%}
+
+            {%- capture params -%}
+            AccessKeyId={{ AKID | url_encode }}&Action=GetCallerIdentity&Format=JSON&SignatureMethod=HMAC-SHA1&SignatureNonce={{ nonce }}&SignatureVersion=1.0&Timestamp={{ timestamp }}&Version=2015-04-01
+            {%- endcapture -%}
+            {%- assign encoded_params = params | replace: "+", "%20" | replace: "*", "%2A" | replace: "%7E", "~" -%}
+            {%- assign query_string = encoded_params | url_encode | replace: "%2D", "-" | replace: "%2E", "." -%}
+            
+            {%- assign signature_base_string = "GET&%2F&" | append: query_string -%}
+            {%- assign token_amp = TOKEN | append: "&" -%}
+
+            {%- assign hmacsignature = signature_base_string | hmac_sha1: token_amp | url_encode -%}
+
+            https://sts.aliyuncs.com/?{{ params }}&Signature={{ hmacsignature }}
+          headers:
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"Arn"']
+    depends_on_rule:
+      - rule_id: kingfisher.alibabacloud.1
+        variable: AKID

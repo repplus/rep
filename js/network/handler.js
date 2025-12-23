@@ -8,6 +8,8 @@ import { formatBytes } from '../core/utils/format.js';
 import { renderDiff } from '../core/utils/misc.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { events, EVENT_NAMES } from '../core/events.js';
+import { generateHexView } from '../ui/hex-view.js'
+import { generateJsonView } from '../ui/json-view.js'
 
 export async function handleSendRequest() {
     const rawContent = elements.rawRequestInput.innerText;
@@ -59,6 +61,12 @@ export async function handleSendRequest() {
 
         elements.rawResponseDisplay.style.display = 'block';
         elements.rawResponseDisplay.style.visibility = 'visible';
+
+        // Update other tabs as well
+        elements.rawResponseText.textContent = rawResponse;
+        elements.hexResponseDisplay.textContent = generateHexView(rawResponse);
+        elements.jsonResponseDisplay.innerHTML = '';
+        elements.jsonResponseDisplay.appendChild(generateJsonView(rawResponse));
 
     } catch (err) {
         console.error('Request Failed:', err);

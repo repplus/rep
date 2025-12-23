@@ -1,0 +1,37 @@
+rules:
+  - name: Friendli.ai API Key
+    id: kingfisher.friendli.1
+    pattern: | 
+      (?xi)
+      \b
+      (
+        flp_[A-Z0-9]{46}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.friendli.ai/dedicated/beta/endpoint"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Content-Type: "application/json"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"data"'
+                - '"status"'
+    references:
+      - https://docs.friendli.ai/reference/authentication
+    examples:
+      - "flp_eb8CAc1OHdVISFraFZXFYQeH1CYtqM2VdYFvV1duniWw32"
+      - "flp_fYvncz2Ahh4YEfSKbNoT09DWlwPq5I7svZG2l1bdbpOg1c"
+      - "flp_kGcjWhZQ4zYQnY7b3O6nukAhflKZJeS7pNDhs79IRrfodc"

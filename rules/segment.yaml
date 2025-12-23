@@ -1,0 +1,64 @@
+rules:
+  - name: Segment Public API Token
+    id: kingfisher.segment.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        sgp_[A-Z0-9_-]{60,70}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - sgp_pOqmnKCOAdIxlEbeRLlJKUOE4ravQJ3ZEijxzK4bpPrWaMNPP35kz4OU7ZVsDtgU
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.segmentapis.com/
+    references:
+      - https://segment.com/docs/api/public-api/
+      - https://segment.com/blog/how-segment-proactively-protects-customer-api-tokens/
+
+  - name: Segment API Key
+    id: kingfisher.segment.2
+    pattern: |
+      (?xi)
+      (?:segment|sgmt)
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        [A-Z0-9_-]{40,50}\.[A-Z0-9_-]{40,50}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - segment_token=FYbcC23QtDKym0b_bapKDaYKcIv5Ggu0B9icU9cfVud.1mSaWEYOh1GIKw11-VVtS3TVXzI04BkCvyijbHWdZK7
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.segmentapis.com/

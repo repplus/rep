@@ -1,0 +1,35 @@
+rules:
+  - name: Dropbox API secret/key
+    id: kingfisher.dropbox.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        sl\.[A-Z0-9\-\_]{130,152}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'curl -X POST https://api.dropboxapi.com/2/users/get_current_account --header "Authorization: Bearer sl.hAi61Jx1hs3XlhrnsCxnctrEmxK2Q-UK29hbdxxHyAykldSeHmipBAauxTzuBEIqt2jdyyUZw8kgY3t_ars-PNIPS27ySa1ab22132U3sUuqYTXHzf2XlvMxSesUhkzx2G11_9W1f-eo"'
+      - '  "access_token": "sl.AbX9y6Fe3AuH5o66-gmJpR032jwAwQPIVVzWXZNkdzcYT02akC2de219dZi6gxYPVnYPrpvISRSf9lxKWJzYLjtMPH-d9fo_0gXex7X37VIvpty4-G8f4-WX45AcEPfRnJJDwzv-",'
+      - 'curl -X POST https://api.dropboxapi.com/2/users/get_current_account --header "Authorization: Bearer sl.hAi61Jx1hs3XlhrnsCxnctrEmxK2Q-UK29hbdxxHyAykldSeHmipBAauxTzuBEIqt2jdyyUZw8kgY3t_ars-PNIPS27ySa1ab22132U3sUuqYTXHzf2XlvMxSesUhkzx2G11_9W1f-eo"'
+      - '  "access_token": "sl.AbX9y6Fe3AuH5o66-gmJpR032jwAwQPIVVzWXZNkdzcYT02akC2de219dZi6gxYPVnYPrpvISRSf9lxKWJzYLjtMPH-d9fo_0gXex7X37VIvpty4-G8f4-WX45AcEPfRnJJDwzv-",'
+      - sl.lMcWXvCOCR9yRAOXwDg1V_VTsbEXdu3Xpsgg35GQTrDahoIuUnij4H5b6bMnwobZx4XnniaQappZU9j-CCWd-LYW81juiU04-yvLhOPV47Nj7Fs8XSE-CweZp6j9nw4E2oWWJ5
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: POST
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"account_id":'
+                - '"email":'
+          url: https://api.dropboxapi.com/2/users/get_current_account

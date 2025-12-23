@@ -1,0 +1,40 @@
+rules:
+  - name: CloudSight API Key
+    id: kingfisher.cloudsight.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      cloudsight
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                     
+      (                      
+        [a-z0-9]{20,24}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - cloudsight api_key = 2d0d3432369b6b53e7621f
+      - |
+        CLOUDSIGHT_API_KEY: 'a1b2c3d4e5f6g7h8i9j0k1l2'
+        cloudsight_secret="3m4n5o6p7q8r9s0t1u2v3w4x5"
+    references:
+      - https://cloudsight.docs.apiary.io/#introduction/authentication
+      - https://cloudsight.ai/api
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: CloudSight {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.cloudsightapi.com/image_requests

@@ -1,0 +1,36 @@
+rules:
+  - name: Snyk API Key
+    id: kingfisher.snyk.1
+    pattern: |
+      (?xi)
+      \b
+      snyk
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [A-Z0-9]{8}-(?:[A-Z0-9]{4}-){3}[A-Z0-9]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - snyk_token = 123e4567-e89b-12d3-a456-426614174000
+      - snyk_key = 123e4567-e89b-12d3-a456-426614174abc
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.snyk.io/rest/self?version=2024-10-15"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"username"']
+              match_all_words: true

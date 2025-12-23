@@ -1,0 +1,40 @@
+rules:
+  - name: Credentials in ODBC Connection String
+    id: kingfisher.odbc.1
+    pattern: |
+      (?xi)
+      (?: User | User\ Id | UserId | Uid) \s*=\s* ([^\s;]{3,100}) \s* ;
+      [\ \t]* .{0,10} [\ \t]* 
+      (?: Password | Pwd) \s*=\s* ([^\t\ ;]{3,100}) \s* (?: [;] | $)
+    pattern_requirements:
+      ignore_if_contains:
+        - "localhost"
+        - "127.0.0.1"
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        //Database Info
+        $host = "localhost";
+        $database = "NHOHVA";
+        $user = "mg1021"; $password = "goodspec";
+      - |
+        //Database Info
+        $host = "localhost";
+        $database = "NHOHVA";
+        $user = "mg1021"; $password = goodspec;
+      - 'Server=host;Port=5432;User Id=username;Password=secret;Database=databasename;'
+      - 'Server=host;Port=5432;SomeOtherKey=SomeOtherValue;User Id=username;Password=secret;Database=databasename;'
+      - 'Data Source=190.190.200.100,1433;Network Library=DBMSSOCN;Initial Catalog=myDataBase;User ID=myUsername;Password=myPassword;'
+      - 'Data Source=190.190.200.100,1433;Network_library=DBMSSOCN;Initial Catalog=myDataBase;User ID=myUsername;Password=myPassword;'
+      - 'Provider=SQLNCLI;Server=myServerName,myPortNumber;Database=myDataBase;Uid=myUsername;Pwd=myPassword;'
+      - |
+        adoConn.Open("Provider=SQLOLEDB.1;User ID=specialbill_user; " & "Password =specialbill_user;Initial Catalog=SpecialBill_PROD;Data Source=uszdba01;")
+      - |
+        "driver={SQL Server};server=(#{datastore['DBHOST']});database=#{datastore['DBNAME']};uid=#{datastore['DBUID']};pwd=#{datastore['DBPASSWORD']}"
+    references:
+      - https://docs.aws.amazon.com/redshift/latest/mgmt/configure-odbc-connection.html
+      - https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/kusto
+      - https://docs.microsoft.com/en-us/azure/mariadb/howto-connection-string
+      - https://docs.microsoft.com/en-us/azure/mysql/single-server/how-to-connection-string
+      - https://www.connectionstrings.com/

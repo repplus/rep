@@ -1,0 +1,43 @@
+rules:
+  - name: Microsoft Teams Webhook
+    id: kingfisher.microsoftteamswebhook.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        https://[A-Z0-9]+\.webhook\.office\.com/webhookb2
+        /
+        [A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}
+        @
+        [A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}
+        /
+        IncomingWebhook
+        /
+        [A-Z0-9]{32}
+        /
+        [A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "https://contoso.webhook.office.com/webhookb2/12345678-abcd-1234-efgh-56789abcdef0@12345678-abcd-1234-efgh-56789abcdef0/IncomingWebhook/abcdefgh12345678abcdefgh12345678/12345678-abcd-1234-efgh-56789abcdef0"
+    validation:
+      type: Http
+      content:
+        request:
+          body: '{"text":""}'
+          headers:
+            Content-Type: application/json
+          method: POST
+          response_matcher:
+            - type: StatusMatch
+              status:
+                - 400
+            - report_response: true
+              type: WordMatch
+              words:
+                - "Text is required"
+          url: '{{ TOKEN }}'

@@ -1,0 +1,43 @@
+rules:
+  - name: Mistral AI API Key
+    id: kingfisher.mistral.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      mistral
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - mistral_token = 47cFZMzkoEo9DBapfvhrmMst3zfV2EIh
+      - mistral_api_key = olI6zlb3F0jO8jjDQUi34skQLPzvox84
+      - 'mistral secret: kMrbwHjG78fYzneT934Pn34NQxVSxniq'
+    references:
+      - https://docs.mistral.ai/getting-started/quickstart :contentReference[oaicite:1]{index=1}
+      - https://docs.mistral.ai/api/ :contentReference[oaicite:2]{index=2}
+      - https://medium.com/@stephane.giron/explore-mistral-ai-api-with-google-apps-script-d41b851c55e3 :contentReference[oaicite:3]{index=3}
+      - https://apidog.com/blog/mistral-ai-api/ :contentReference[oaicite:4]{index=4}
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.mistral.ai/v1/models
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"data"']

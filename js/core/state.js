@@ -3,7 +3,9 @@
 export const state = {
     requests: [],
     selectedRequest: null,
-    currentFilter: 'all', // all, GET, POST, etc.
+    currentFilter: 'all', // all, GET, POST, etc. (legacy, kept for compatibility)
+    selectedMethods: new Set(), // Set of selected HTTP methods (e.g., ['GET', 'POST'])
+    starFilterActive: false, // Whether star filter is active
     currentColorFilter: 'all', // all, red, green, blue, etc.
     currentSearchTerm: '',
     useRegex: false,
@@ -30,13 +32,29 @@ export const state = {
     // Attack Surface Grouping (per-domain)
     attackSurfaceCategories: {}, // { requestIndex: { category, confidence, reasoning, icon } }
     domainsWithAttackSurface: new Set(), // Track which domains have been analyzed
-    isAnalyzingAttackSurface: false
+    isAnalyzingAttackSurface: false,
+    // Request blocking/stepping
+    blockRequests: false,
+    blockedQueue: [],
+    // postMessage Monitor
+    pmMonitor: {
+        enabled: false,
+        listeners: [],
+        messages: [],
+        searchTerm: '',
+        highlightTerms: ['token','auth','login','session','redirect','location','html','innerHTML','eval','action','event','success','challenge','retry'],
+        selectedListenerId: null
+    }
 };
 
 export function addRequest(request) {
     // Initialize defaults
     request.starred = false;
     request.color = null;
+    // Optional human-friendly name for the request (used for inline rename & search)
+    if (typeof request.name !== 'string') {
+        request.name = null;
+    }
     state.requests.push(request);
 
     return state.requests.length - 1; // Return index

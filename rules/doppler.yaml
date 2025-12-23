@@ -1,0 +1,183 @@
+rules:
+  - name: Doppler CLI Token
+    id: kingfisher.doppler.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        dp\.ct\.[A-Z0-9]{40,44}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.ct.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/projects
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+  - name: Doppler Personal Token
+    id: kingfisher.doppler.2
+    pattern: |
+      (?xi)
+      \b
+      (dp\.pt\.[A-Z0-9]{40,44})
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.pt.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/projects
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Doppler Service Token
+    id: kingfisher.doppler.3
+    pattern: |
+      (?xi)
+      \b
+      (dp\.st\.(?:[a-z0-9\-_]{2,35}\.)?[A-Z0-9]{40,44})
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.st.dev.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/me
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Doppler Service Account Token
+    id: kingfisher.doppler.4
+    pattern: |
+      (?xi)
+      \b
+      (dp\.sa\.[A-Z0-9]{40,44})
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.sa.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/me
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Doppler SCIM Token
+    id: kingfisher.doppler.5
+    pattern: |
+      (?xi)
+      \b
+      (dp\.scim\.[A-Z0-9]{40,44})
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.scim.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/scim/v2/ServiceProviderConfig
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Doppler Audit Token
+    id: kingfisher.doppler.6
+    pattern: |
+      (?xi)
+      \b
+      (dp\.audit\.[A-Z0-9]{40,44})
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dp.audit.bAqhcVzrhy5cRHkOlNTc0Ve6w5NUDCpcutm8vGE9myi
+    references:
+      - https://docs.doppler.com/reference/api
+      - https://docs.doppler.com/reference/auth-token-formats
+      - https://docs.doppler.com/reference/auth-me
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.doppler.com/v3/auditlogs
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

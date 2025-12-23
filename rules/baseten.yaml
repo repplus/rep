@@ -1,0 +1,49 @@
+rules:
+  - name: Baseten API Key
+    id: kingfisher.baseten.1
+    pattern: |
+      (?x)       
+      \b
+      baseten
+      (?:.|[\n\r]){0,32}?
+      \b
+      (               
+        [A-Za-z0-9]{8} 
+        \.             
+        [A-Za-z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.4
+    confidence: medium
+    examples:
+      - baseten_key = WSsDXzCD.uOcxAp7k82IvCKyY36TnpVbP4ZszP1qw
+      - baseten_key = crXCQC3W.CgCGGY1b9IfJan5TppW0Z07C9oMN2DmR
+      - baseten_key = h2wFkhFC.3WFVwVcxGFr4Qup0gyhvIuONwQxEpL0A
+      - baseten_key = XqbIpj04.x73j1zLUOEgGIKROqVbxsmggPdL8JvAY
+    references:
+      - https://docs.baseten.co/examples/vllm 
+      - https://docs.baseten.co/reference/management-api/api-keys/lists-the-users-api-keys
+      - https://docs.baseten.co/reference/training-api/overview#authentication
+      - https://docs.baseten.co/reference/management-api/api-keys/creates-an-api-key
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.baseten.co/v1/api_keys
+          headers:
+            Authorization: Api-Key {{ TOKEN }}
+          response_matcher:
+            - report_response: true    
+            - type: StatusMatch        
+              status: [200]
+            - type: JsonValid
+            - type: WordMatch           
+              match_all_words: true
+              words:
+                - '"name"'
+                - '"type"'

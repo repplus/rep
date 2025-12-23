@@ -1,0 +1,39 @@
+rules:
+  - name: Postman API Key
+    id: kingfisher.postman.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        PMAK-[A-Z0-9]{24}-[A-Z0-9]{34}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - PMAK-5dd543842789bd0036bf98c1-a5a9b8f1dfda8fbf18a4664ebe558b04ed
+      - PMAK-642a58a823faa300316566d1-6715a3a826ce5d5d62be8539d6ac357146
+      - PMAK-642a9b9084d6110029e75d7d-09efdcb872587f6f67696f02929647d9c6
+      - "// ('x-api-key', 'PMAK-629c73facbc064567cbf6970-f56e8b4cd0bb14d00962f17afc158dc2a2')"
+    references:
+      - https://learning.postman.com/docs/developer/intro-api/
+      - https://learning.postman.com/docs/developer/postman-api/authentication/
+      - https://learning.postman.com/docs/administration/managing-your-team/managing-api-keys/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            x-api-key: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+            - type: WordMatch
+              words:
+                - '"user":'
+          url: https://api.getpostman.com/me

@@ -1,0 +1,31 @@
+rules:
+  - name: NVIDIA NIM API Key
+    id: kingfisher.nvidia.nim.1
+    pattern: |
+      (?xi)
+      (
+        nvapi-[A-Z0-9_-]{60,70}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    examples:
+      - "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"
+      - "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"
+      - "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"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.nvcf.nvidia.com/v2/nvcf/functions"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ["id", "versionId"] 

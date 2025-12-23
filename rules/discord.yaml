@@ -1,0 +1,76 @@
+rules:
+  - name: Discord Webhook URL
+    id: kingfisher.discord.1
+    pattern: |
+      (?xi)
+      (
+        https://discord\.com/api/webhooks/
+        \d{18}
+      )/
+      (
+        [0-9a-z_\-]{68}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdef
+    categories:
+      - api
+      - webhook
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: '{{ TOKEN }}'
+  - name: Discord Bot Token
+    id: kingfisher.discord.2
+    pattern: |
+      (?xi)
+      (
+        [MNO][A-Z0-9_-]{23}\.[A-Z0-9_-]{6}\.[A-Z0-9_-]{27}
+      )  
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'apikey: MC0dBvKTjD0rY0cV8i37CjBf.uLHQPq.Nb1Ok1mEhe-3iTdrGOuegj29yQR'
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bot {{ BOTID }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://discord.com/api/v8/users/@me
+    depends_on_rule:
+      - rule_id: "kingfisher.discord.3"
+        variable: BOTID
+  - name: Discord Bot ID
+    id: kingfisher.discord.3
+    pattern: |
+      (?xi)
+      (?:discord|botid|bot_id)
+      (?:.|[\n\r]){0,64}?
+      (
+        \d{17,19}
+      )
+    min_entropy: 3.5
+    visible: false
+    confidence: medium
+    examples:
+      - discord = 12345678901234567
+      - 'bot_id: "123456789012345678"'

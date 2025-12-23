@@ -1,0 +1,63 @@
+rules:
+  - name: GCP API Token
+    id: kingfisher.gcp.1
+    pattern: |
+      (?xims)
+      (
+        \{[^{}]*
+        \"auth_provider_x509_cert_url\":
+        .{0,512}?
+        }
+      )
+      |
+      \{
+        (?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*
+        "auth_provider_x509_cert_url":\s*".+?"
+        (?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*
+      \}
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.5
+    confidence: high
+    examples:
+      - '{"auth_provider_x509_cert_url":DFD5dC97C711CE1E078FD0A5CBCE1fE895D44abb47faeD9280db6137a35EDdfBd173Dbf57B1e54c10dD9B8E36bdE4816EedEF6c55D9ca4FC14dEf71c9bNd6a5aF9c46EC6BdfCD4f7fEeb2B9E96A8CfBD9a965bbaDAACe0d09ffe19Fc5BF3B6c9636A9b35d0cFcfC0ECb118edf8E2dEae3f1D3C36F5Da9DBe562f3E2deb9D20f4ndDC106bdEdBeaB5629362eE6d0C1b90e84A6C281C14c2ade40c3AF17ACeEfe0e998d5f3BaadbB7D479ab3cEbc8Be263Dc07dF2}'
+      - |-
+        {
+          "admin": {
+            "credential": {
+              "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+              "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+              "client_email": "firebase-example@firebase-example.iam.gserviceaccount.com",
+              "client_id": "218284793146200123456",
+              "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-example-a1mrc%40firebase-example.iam.gserviceaccount.com",
+              "database_url": "https://example.firebaseio.com"
+            }
+          }
+        }
+    validation:
+      type: GCP
+  - name: GCP Private Key ID
+    id: kingfisher.gcp.3
+    pattern: |
+      (?xi)
+      \b                     
+      gcp
+      (?:
+        .{0,20}?
+        (?:key|secret)
+      )
+      .{0,12}
+      [=:]
+      \s{0,8}
+      ["']?
+      (
+        [0-9a-z]{35,40}
+      )
+      ["']?
+      \b
+    pattern_requirements:
+      min_digits: 2             
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - gcp_secret = ANzaSy0c3475372a7b10f7740dbda47abfdca42

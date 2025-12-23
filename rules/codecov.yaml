@@ -1,0 +1,39 @@
+rules:
+  - name: Codecov Access Token
+    id: kingfisher.codecov.1
+    pattern: |
+      (?xi)
+      \b
+      codecov
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9-]{36}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.codecov.io/api/v2/github/"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"count":'
+    references:
+      - https://docs.codecov.com/reference/api-overview
+    examples:
+      - "codecov_token = 52acf265-3fc6-4ecd-304a-15940bd04653"

@@ -1,0 +1,97 @@
+rules:
+  - name: Sourcegraph Access Token
+    id: kingfisher.sourcegraph.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        sgp_(?:[a-f0-9]{16}_local_)?[a-f0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    examples:
+      - sgp_210f1131b08e93adcfc3f05faa2d768ff883a61f
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://sourcegraph.com/.api/graphql
+          headers:
+            Authorization: "token {{ TOKEN }}"
+            Content-Type: application/json
+          body: |
+            { "query": "query ValidateToken { site { id } }" }
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"site":{']
+              match_all_words: true
+
+  - name: Sourcegraph _Legacy_ API Key
+    id: kingfisher.sourcegraph.2
+    pattern: |
+      (?xi)
+      \b
+      sourcegraph
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        (?:sgp_(?:[a-f0-9]{16}_local_)?[a-f0-9]{40}|[a-f0-9]{40})
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - sourcegraph SECRET sgp_abcdef1234567890_local_0123456789abcdef0123456789abcdef01234567
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://sourcegraph.com/.api/graphql
+          headers:
+            Authorization: "token {{ TOKEN }}"
+            Content-Type: application/json
+          body: |
+            { "query": "query ValidateToken { site { id } }" }
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"site":{']
+
+  - name: Sourcegraph Cody Gateway Key
+    id: kingfisher.sourcegraph.3
+    pattern: |
+      (?xi)
+      \b
+      slk_[a-f0-9]{64}
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - slk_27b0a1f1926e7376dd8bdfcb0ade3c397c462b6e68c854a5521a17dd2b704ce6
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://cody-gateway.sourcegraph.com/v1/limits
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"token"', '"limit"']
+              match_all_words: true

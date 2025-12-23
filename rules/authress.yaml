@@ -1,0 +1,34 @@
+rules:
+  - name: Authress Service Client Access Key
+    id: kingfisher.authress.1
+    pattern: |
+      (?xi)
+      (
+        (?:sc|ext|scauth|authress)_[a-z0-9]{5,30}\.[a-z0-9]{4,6}\.acc[_-][a-z0-9-]{10,32}\.[a-z0-9+/_=-]{30,120}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 1
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.authress.io/v1/users/me"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: JsonValid
+            - type: WordMatch
+              words:
+                - '"Unauthorized"'
+              negative: true
+    references:
+      - https://authress.io/knowledge-base/docs/authorization/service-clients/access-keys/
+      - https://authress.io/knowledge-base/docs/usage-guides/api-keys-as-a-service-setup/
+    examples:
+      - "sc_a6DTktFwMEvh87xstYV1BXl.ihwj.acc-0xd1a47h1rr0f.MC4CAQAwBQYDKAVwBCIEIB1wYB62EK24FKxEPHbW0ishcstwp2qs30uLXdWgu4V0"

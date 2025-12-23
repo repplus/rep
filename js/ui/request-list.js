@@ -45,6 +45,16 @@ export function createPageGroup(pageUrl) {
         if (e.target.closest('.group-ai-btn') || e.target.closest('.group-star-btn') || e.target.closest('.group-delete-btn')) return;
 
         group.classList.toggle('expanded');
+
+        // If collapsing the page, also collapse third-party domain groups for cleanliness
+        if (!group.classList.contains('expanded')) {
+            const domainGroups = group.querySelectorAll('.domain-group');
+            domainGroups.forEach(domainGroup => {
+                domainGroup.classList.remove('expanded');
+                const toggle = domainGroup.querySelector('.group-toggle');
+                if (toggle) toggle.textContent = '▶';
+            });
+        }
     });
 
     // AI button handler
@@ -87,6 +97,37 @@ export function createPageGroup(pageUrl) {
     group.appendChild(header);
     group.appendChild(content);
 
+    return group;
+}
+
+// Root path group for first-party requests under a page
+function createPathGroup() {
+    const group = document.createElement('div');
+    group.className = 'path-group expanded'; // default expanded
+    group.id = 'path-root';
+
+    const header = document.createElement('div');
+    header.className = 'path-header';
+    header.innerHTML = `
+        <span class="group-toggle">▼</span>
+        <span class="path-icon">🗂️</span>
+        <span class="path-name">/</span>
+        <span class="path-count">(0)</span>
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'path-content';
+
+    header.addEventListener('click', (e) => {
+        // No buttons to skip; entire header toggles
+        group.classList.toggle('expanded');
+        const toggle = header.querySelector('.group-toggle');
+        const isExpanded = group.classList.contains('expanded');
+        if (toggle) toggle.textContent = isExpanded ? '▼' : '▶';
+    });
+
+    group.appendChild(header);
+    group.appendChild(content);
     return group;
 }
 
@@ -162,13 +203,29 @@ export function createRequestItemElement(request, index, categoryData) {
         urlSpan.appendChild(globeIcon);
     }
 
+    // Compute display label: user-defined name (if present) or path+query
+    let displayLabel = request.name && typeof request.name === 'string' && request.name.trim()
+        ? request.name.trim()
+        : null;
+
     try {
         const urlObj = new URL(request.request.url);
-        urlSpan.appendChild(document.createTextNode(urlObj.pathname + urlObj.search));
+        const pathAndQuery = urlObj.pathname + urlObj.search;
+        if (!displayLabel) {
+            displayLabel = pathAndQuery || request.request.url;
+        }
+        urlSpan.appendChild(document.createTextNode(displayLabel));
+        urlSpan.title = request.name
+            ? `${request.name} — ${request.request.url}`
+            : request.request.url;
     } catch (e) {
-        urlSpan.appendChild(document.createTextNode(request.request.url));
-    }
+        // Fallback if URL constructor fails
+        if (!displayLabel) {
+            displayLabel = request.request.url;
+        }
+        urlSpan.appendChild(document.createTextNode(displayLabel));
     urlSpan.title = request.request.url;
+    }
 
     // Time span
     const timeSpan = document.createElement('span');
@@ -276,6 +333,92 @@ export function createRequestItemElement(request, index, categoryData) {
         events.emit(EVENT_NAMES.REQUEST_SELECTED, index);
     });
 
+    // Inline rename: double-click the URL/label to edit request.name
+    urlSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+
+        // Prevent multiple editors
+        if (urlSpan.querySelector('input.req-name-input')) {
+            return;
+        }
+
+        const currentLabel = displayLabel || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'req-name-input';
+        input.value = currentLabel;
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+
+        // Replace text node(s) with input
+        urlSpan.innerHTML = '';
+        urlSpan.appendChild(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+            const newName = input.value.trim();
+            // Validate request exists before updating
+            if (index < 0 || index >= state.requests.length || !state.requests[index]) {
+                console.warn(`Cannot rename: Request at index ${index} does not exist`);
+                cancel();
+                return;
+            }
+            const request = state.requests[index];
+            if (!request || !request.request) {
+                // Request was removed, restore original label
+                urlSpan.innerHTML = '';
+                urlSpan.appendChild(document.createTextNode(currentLabel));
+                return;
+            }
+            // Update state
+            request.name = newName || null;
+
+            // Re-render label
+            urlSpan.innerHTML = '';
+            const finalLabel = newName || ((() => {
+                try {
+                    const urlObj = new URL(request.request.url);
+                    return urlObj.pathname + urlObj.search || request.request.url;
+                } catch {
+                    return request.request.url;
+                }
+            })());
+            urlSpan.appendChild(document.createTextNode(finalLabel));
+            urlSpan.title = newName
+                ? `${newName} — ${request.request.url}`
+                : request.request.url;
+        };
+
+        const cancel = () => {
+            // Restore original label without changing state
+            urlSpan.innerHTML = '';
+            urlSpan.appendChild(document.createTextNode(currentLabel));
+            // Only set title if request still exists
+            if (index >= 0 && index < state.requests.length && state.requests[index]) {
+                urlSpan.title = state.requests[index].name
+                    ? `${state.requests[index].name} — ${state.requests[index].request.url}`
+                    : state.requests[index].request.url;
+            } else {
+                urlSpan.title = currentLabel;
+            }
+        };
+
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                commit();
+            } else if (ev.key === 'Escape') {
+                ev.preventDefault();
+                cancel();
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            commit();
+        });
+    });
+
     // Add confidence badge if category data is provided
     if (categoryData) {
         const badge = document.createElement('span');
@@ -345,21 +488,26 @@ export function renderRequestItem(request, index) {
         const domainCount = parseInt(domainCountSpan.textContent.replace(/[()]/g, '')) || 0;
         domainCountSpan.textContent = `(${domainCount + 1})`;
     } else {
-        // First-party request - insert at top (before other first-party requests and domain groups)
+        // First-party request - place under root path group
+        let pathGroup = pageContent.querySelector('.path-group');
+        if (!pathGroup) {
+            pathGroup = createPathGroup();
+            // Insert path group before domain groups (if any)
         const firstDomainGroup = pageContent.querySelector('.domain-group');
-        // Only select direct children request items, not those nested in domain groups
-        const firstFirstPartyRequest = pageContent.querySelector(':scope > .request-item');
-
-        if (firstFirstPartyRequest) {
-            // Insert before the first first-party request
-            pageContent.insertBefore(item, firstFirstPartyRequest);
-        } else if (firstDomainGroup) {
-            // No first-party requests yet, insert before domain groups
-            pageContent.insertBefore(item, firstDomainGroup);
+            if (firstDomainGroup) {
+                pageContent.insertBefore(pathGroup, firstDomainGroup);
         } else {
-            // Empty page group
-            pageContent.appendChild(item);
+                pageContent.appendChild(pathGroup);
+            }
         }
+        const pathContent = pathGroup.querySelector('.path-content');
+        // Prepend to show most recent first
+        pathContent.insertBefore(item, pathContent.firstChild);
+
+        // Update path count
+        const pathCountSpan = pathGroup.querySelector('.path-count');
+        const pathCount = parseInt(pathCountSpan.textContent.replace(/[()]/g, '')) || 0;
+        pathCountSpan.textContent = `(${pathCount + 1})`;
     }
 
     // Update page count
@@ -560,6 +708,10 @@ export function filterRequests() {
             bodyTextLower = bodyText.toLowerCase();
         }
 
+        // Prepare name for search (user-defined request label)
+        const name = (request.name && typeof request.name === 'string') ? request.name : '';
+        const nameLower = name.toLowerCase();
+
         // Check search term
         let matchesSearch = false;
         if (state.currentSearchTerm === '') {
@@ -572,7 +724,8 @@ export function filterRequests() {
                     regex.test(method) ||
                     regex.test(hostname) ||
                     regex.test(headersText) ||
-                    regex.test(bodyText);
+                    regex.test(bodyText) ||
+                    regex.test(name);
             } catch (e) {
                 if (!regexError) {
                     regexError = true;
@@ -585,17 +738,60 @@ export function filterRequests() {
                 method.includes(state.currentSearchTerm.toUpperCase()) ||
                 hostnameLower.includes(state.currentSearchTerm) ||
                 headersTextLower.includes(state.currentSearchTerm) ||
-                bodyTextLower.includes(state.currentSearchTerm);
+                bodyTextLower.includes(state.currentSearchTerm) ||
+                nameLower.includes(state.currentSearchTerm);
         }
 
         // Check filter
         let matchesFilter = true;
-        if (state.currentFilter !== 'all') {
+        
+        // Check if method filter is active (multi-select)
+        if (state.selectedMethods && state.selectedMethods.size > 0) {
+            // First check if the method itself is selected
+            const methodMatches = state.selectedMethods.has(method);
+            
+            // If XHR is selected, also check if request matches XHR criteria
+            let xhrMatches = false;
+            if (state.selectedMethods.has('XHR')) {
+                // XHR filter: exclude images, fonts, and text files based on Content-Type and extension
+                let contentType = '';
+                if (request.response && request.response.headers) {
+                    const ctHeader = request.response.headers.find(h =>
+                        h.name.toLowerCase() === 'content-type'
+                    );
+                    if (ctHeader) {
+                        contentType = ctHeader.value.toLowerCase();
+                    }
+                }
+
+                // Exclude image, font, and text content types
+                const excludeTypes = [
+                    'image/', 'font/', 'text/html', 'text/plain', 'text/xml',
+                    'application/font', 'application/x-font'
+                ];
+
+                const isExcludedByContentType = excludeTypes.some(type => contentType.includes(type));
+
+                // Also check by extension
+                const excludeExtensions = [
+                    '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico', '.bmp',
+                    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+                    '.txt', '.xml', '.html', '.htm'
+                ];
+                const isExcludedByExtension = excludeExtensions.some(ext => {
+                    return urlLower.endsWith(ext) || urlLower.includes(ext + '?');
+                });
+
+                xhrMatches = !isExcludedByContentType && !isExcludedByExtension;
+            }
+            
+            // Match if method is selected OR (XHR is selected AND request matches XHR criteria)
+            matchesFilter = methodMatches || xhrMatches;
+        } else if (state.currentFilter !== 'all') {
+            // Legacy single-select filter support (for backward compatibility)
             if (state.currentFilter === 'starred') {
                 matchesFilter = request.starred;
             } else if (state.currentFilter === 'XHR') {
-                // we technically dont know whether this is xhr or not but wanted to be similar to chrome devtools
-
                 // XHR filter: exclude images, fonts, and text files based on Content-Type and extension
                 let contentType = '';
                 if (request.response && request.response.headers) {
@@ -631,6 +827,12 @@ export function filterRequests() {
             }
         }
 
+        // Check star filter (independent, works with AND logic)
+        let matchesStar = true;
+        if (state.starFilterActive) {
+            matchesStar = request.starred === true;
+        }
+
         // Check color filter
         let matchesColor = true;
         if (state.currentColorFilter !== 'all') {
@@ -643,13 +845,21 @@ export function filterRequests() {
             matchesTimeline = request.capturedAt <= state.timelineFilterTimestamp;
         }
 
-        if (matchesSearch && matchesFilter && matchesColor && matchesTimeline) {
+        // All filters work together with AND logic
+        if (matchesSearch && matchesFilter && matchesStar && matchesColor && matchesTimeline) {
             item.style.display = 'flex';
             visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+
+    // Check if any filters are active (for auto-expand logic)
+    const hasActiveFilters = (state.selectedMethods && state.selectedMethods.size > 0) || 
+                             state.starFilterActive || 
+                             state.currentColorFilter !== 'all' || 
+                             state.currentSearchTerm ||
+                             (state.currentFilter !== 'all' && state.currentFilter !== 'starred');
 
     // Update domain groups visibility (third-party domains)
     const domainGroups = requestList.querySelectorAll('.domain-group');
@@ -658,11 +868,24 @@ export function filterRequests() {
         group.style.display = hasVisibleItems ? 'block' : 'none';
 
         // Auto-expand domain groups when filtering (unless manually collapsed)
-        if (hasVisibleItems && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
-            const content = group.querySelector('.domain-content');
-            const toggleBtn = group.querySelector('.domain-toggle-btn');
-            if (content) content.style.display = 'block';
-            if (toggleBtn) toggleBtn.style.transform = 'rotate(90deg)';
+        if (hasVisibleItems && !state.manuallyCollapsed && hasActiveFilters) {
+            group.classList.add('expanded');
+            const toggle = group.querySelector('.group-toggle');
+            if (toggle) toggle.textContent = '▼';
+        }
+    });
+
+    // Update path groups visibility (first-party root path)
+    const pathGroups = requestList.querySelectorAll('.path-group');
+    pathGroups.forEach(group => {
+        const hasVisibleItems = Array.from(group.querySelectorAll('.request-item')).some(item => item.style.display !== 'none');
+        group.style.display = hasVisibleItems ? 'block' : 'none';
+
+        // Auto-expand path group when filtering (unless manually collapsed)
+        if (hasVisibleItems && !state.manuallyCollapsed && hasActiveFilters) {
+            group.classList.add('expanded');
+            const toggle = group.querySelector('.group-toggle');
+            if (toggle) toggle.textContent = '▼';
         }
     });
 
@@ -670,16 +893,16 @@ export function filterRequests() {
     const pageGroups = requestList.querySelectorAll('.page-group');
     pageGroups.forEach(group => {
         const pageContent = group.querySelector('.page-content');
-        const hasVisibleRequests = Array.from(pageContent.querySelectorAll(':scope > .request-item')).some(item => item.style.display !== 'none');
+        const hasVisibleFirstParty = Array.from(pageContent.querySelectorAll('.path-group .request-item')).some(item => item.style.display !== 'none');
         const hasVisibleDomains = Array.from(pageContent.querySelectorAll('.domain-group')).some(domain => domain.style.display !== 'none');
         const hasVisibleAttackSurface = pageContent.querySelector('.attack-surface-category') !== null;
 
-        group.style.display = (hasVisibleRequests || hasVisibleDomains || hasVisibleAttackSurface) ? 'block' : 'none';
+        group.style.display = (hasVisibleFirstParty || hasVisibleDomains || hasVisibleAttackSurface) ? 'block' : 'none';
 
         // Auto-expand page groups when filtering (unless manually collapsed)
-        if ((hasVisibleRequests || hasVisibleDomains || hasVisibleAttackSurface) && !state.manuallyCollapsed && (state.currentFilter !== 'all' || state.currentColorFilter !== 'all' || state.currentSearchTerm)) {
+        if ((hasVisibleFirstParty || hasVisibleDomains || hasVisibleAttackSurface) && !state.manuallyCollapsed && hasActiveFilters) {
+            group.classList.add('expanded');
             const toggleBtn = group.querySelector('.page-toggle-btn');
-            if (pageContent) pageContent.style.display = 'block';
             if (toggleBtn) toggleBtn.classList.add('expanded');
         }
     });

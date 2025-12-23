@@ -1,0 +1,57 @@
+rules:
+  - name: Okta API Token
+    id: kingfisher.okta.1
+    pattern: |
+      (?xi)
+      (?s)
+      (?:okta|ssws)
+      (?:.|[\n\r]){0,64}?
+      \b
+      (
+        00[a-z0-9_-]{39}[a-z0-9_]
+      )
+      \b
+    pattern_requirements:
+      min_digits: 4
+    min_entropy: 3.3
+    examples:
+      - okta_api_token=00hqNORUpnTcdFWA5WEM4YwOkw6RXeFw21lFDRKmY1
+      - 'okta_api_token = 00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      - 'OKTA_API_KEY = "00-aaaaaaaaaaaaa-aaaaaaaaaaaaaaaaaaaaaaaaa"'
+      - 'okta_secret:  00QCjAl4MlV-WPXM-ABCDEFGHIJKL-0HmjFx-vbGua'
+      - 'Authorization: SSWS 00QCjAl4MlV-WPXM-ABCDEFGHIJKL-0HmjFx-vbGua'
+      - |
+        variable "corp_okta_api_token" {
+          default = "004EWTpRQT_HJtG_nL-agxacgzYHjxPcF99kJsFzWg"
+        }
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Accept: application/json
+            Authorization: SSWS {{ TOKEN }}
+            Content-Type: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - activated
+          url: https://{{ DOMAIN }}/api/v1/users/me
+    depends_on_rule:
+      - rule_id: "kingfisher.okta.2"
+        variable: DOMAIN
+  - name: Okta Domain
+    id: kingfisher.okta.2
+    pattern: |
+      (?xi)
+      (
+        [a-z0-9-]{1,40}\.okta(?:preview|-emea)?\.com
+      )
+      \b
+    min_entropy: 3
+    visible: false
+    examples:
+      - company-name.okta.com

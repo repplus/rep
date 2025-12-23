@@ -1,0 +1,116 @@
+rules:
+  - name: Grafana API Token
+    id: kingfisher.grafana.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        eyJrIjoi[a-z0-9]{60,100}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'Authorization: Bearer eyJrIjoiWHZiSWd5NzdCYUZnNUtibE8obUpESmE2bzJYNDRIc1UiLCJuIjoibXlrZXkiLCJpZCI7MX1'
+      - 'admin_client = GrafanaClient("eyJrIjoiY21sM1JRYjB6RnVYSTNLenRWQkFEaWN2bXI2V202U2IiLCJuIjoiYWRtaW5rZXkiLCJpZCI6MX0=", host=grafana_host, port=3000, protocol="http")'
+    references:
+      - https://grafana.com/docs/grafana/latest/developers/http_api/auth/
+  
+  - name: Grafana Cloud API Token
+    id: kingfisher.grafana.2
+    pattern: |
+      (?xi)                   
+      \b          
+      (
+        glc_             
+        [a-z0-9+/]{40,150}
+        ={0,2}
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - '  "token": "glc_eyJrIjoiZjI0YzZkNGEwZDBmZmZjMmUzNTU3ODcxMmY0ZWZlNTQ1NTljMDFjOCIsIm6iOiJteXRva3VuIiwiaWQiOjF8"'
+      - 'grafana = glc_etLvNLoNMLt7MTczNNwNbN6Nm1ldGEtbW9paxRvcmlpZt14ZXN4NNwNatN6NLCxdKeH7KTUvWpNqCrHlMKE9EhLcZH7to'
+    references:
+      - https://grafana.com/docs/grafana-cloud/developer-resources/api-reference/cloud-api/#regions
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://grafana.com/api/stack-regions
+
+  - name: Grafana Service Account Token
+    id: kingfisher.grafana.3
+    pattern: |
+      (?xi)
+      \b
+      (
+        glsa_[A-Z0-9]{32}_[A-F0-9]{8}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        curl -H "Authorization: Bearer glsa_HOruNAb7SOiCdshU7algkrq7FDsNSLAa_55e2f8be" -X GET '<grafana_url>/api/access-control/user/permissions' | jq
+      - |
+        // getData()
+        // {
+        //  let url="http://localhost:4200/api/search"
+        //  const headers = new HttpHeaders({
+        //    'Content-Type': 'application/json',
+        //    'Authorization': `Bearer glsa_Sof0HKi3agxrQP9qm5r2G98VacBNwV5P_9b638c45`
+        //  })
+        //  return this.http.get(url, {headers: headers});
+        // }
+    references:
+      - https://grafana.com/docs/grafana/latest/administration/service-accounts/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          response_matcher:
+            - report_response: true 
+            - status:
+                - 200              
+              type: StatusMatch
+          url: "{{ GRAFANADOMAIN }}/api/access-control/me"
+    depends_on_rule:
+      - rule_id: kingfisher.grafana.4
+        variable: GRAFANADOMAIN
+
+  - name: Grafana Domain
+    id: kingfisher.grafana.4
+    pattern: |
+      (?xi)
+      (?:https?://)?
+      (?:[A-Z0-9-]+\.){0,32}
+      grafana\.[A-Z0-9.-]{3,32}
+      (?::\d{2,5})?
+      (?:[/?\#]\S*)?   
+    min_entropy: 3.0               
+    visible: false
+    confidence: medium
+    examples:
+      - https://grafana.example.com
+      - http://grafana.prod.eu-west.mycorp.internal:3000/login
+      - https://api.team1.grafana.services.cluster.local/health
+      - grafana.dev.foo-bar.co.uk

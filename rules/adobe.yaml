@@ -1,0 +1,74 @@
+rules:
+  - name: Adobe Stock API Key
+    id: kingfisher.adobe.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      adobe
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-F0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - adobeKey = 1a2b3c4d5e6f7890abcdef1234567890
+    references:
+      - https://developer.adobe.com/stock/docs/getting-started/03-api-authentication/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            x-api-key: '{{ TOKEN }}'
+            x-product: '{{ PRODUCTID }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: WordMatch
+              words:
+                - '"error_code":"403003"'
+              negative: true
+          url: https://stock.adobe.io/Rest/Media/1/Search/Files?locale=en_US&search_parameters%5Bwords%5D=cats%20in%20costume
+    depends_on_rule:
+      - rule_id: "kingfisher.adobe.2"
+        variable: PRODUCTID
+  - name: Adobe IO Product ID
+    id: kingfisher.adobe.2
+    pattern: |
+      (?xi)
+      \b
+      adobe
+      (?:.|[\n\r]){0,64}?
+      \b
+      (
+        [a-z0-9]{12}
+      )
+      \b
+    min_entropy: 2.0
+    visible: false
+    examples:
+      - adobeProduct = lV9ASPsd2P3d
+  - name: Adobe OAuth Client Secret
+    id: kingfisher.adobe.3
+    pattern: |
+      (?xi)
+      \b
+      (
+        p8e-[A-Z0-9-]{32}
+      )
+      (?:[^A-Z0-9-])
+    min_entropy: 3.5
+    examples:
+      - |
+          {
+            "client_credentials": {
+            "client_id": "a65b0146769d433a835f36660881db50",
+            "client_secret": "p8e-ibndcvsmAp9ZgPBZ606FSlYIZVlsZ-g5"
+          },

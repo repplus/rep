@@ -1,0 +1,69 @@
+rules:
+  - name: Heroku API Key
+    id: kingfisher.heroku.1
+    pattern: |
+      (?xi)
+      \b                                
+      heroku
+      (?:.|[\n\r]){0,32}?
+      \b
+      (                                    
+        [0-9a-f]{8}-[0-9a-f]{4}-         
+        [0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - 'HEROKU_API_KEY: c55dbac4-e0e8-4a06-b892-75cac2387ce5'
+    references:
+      - https://devcenter.heroku.com/articles/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          headers:
+            Accept: application/vnd.heroku+json; version=3
+            Authorization: Bearer {{ TOKEN }}
+          url: https://api.heroku.com/apps
+          response_matcher:
+            - report_response: true 
+            - type: StatusMatch
+              status: [200]
+  - name: Heroku API Key (Platform Key)
+    id: kingfisher.heroku.2
+    pattern: |
+      (?xi)
+      (
+        HRKU-[A-Z0-9_]{60}
+      )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.heroku.com/apps"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+            Accept: "application/vnd.heroku+json;version=3"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"id":'
+                - '"name":'
+              match_all_words: true
+    references:
+      - https://devcenter.heroku.com/articles/platform-api-quickstart
+    examples:
+      - "HRKU-AADVTUYvfjT4nhuJ07bEfAUq9GS3PkTdyWuNBiXYmYMg_____wgAf6OTnGyh"
+      - "HRKU-AABW9W1iH9NHEIlAABq9nZUq9GS3PkTdyWuNBiXYmYMg_____wV2XYIXxm5p"
+      - "HRKU-AAWpqREEr2V1gqh6urSXWYUq9GS3PkTdyWuNBiXYmYMg_____wNI1VGijd8y"

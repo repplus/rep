@@ -1,0 +1,107 @@
+rules:
+  - name: MongoDB API Private Key
+    id: kingfisher.mongodb.1
+    pattern: |
+      (?xi)                     
+      (?:                     
+        (?:\b|_|-|\.)          
+        (?:mongodb|atlas)
+        (?:\b|_|-|\.)          
+      )
+      .{0,1000}?
+      (?:private|priv|secret|auth|pass|key)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (                        
+        [a-fA-F0-9]{8}
+        -
+        [a-fA-F0-9]{4}
+        -
+        [a-fA-F0-9]{4}
+        -
+        [a-fA-F0-9]{4}
+        -
+        [a-fA-F0-9]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.7
+    examples:
+      - ATLAS_PRIVATE_KEY=4b18315e-6b7d-4337-b449-5d38f5a189ec
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Accept: application/vnd.atlas.2023-02-01+json
+            Content-Type: application/json
+          method: GET
+          digest: '{{ PUBKEY | append: ":" | append: TOKEN }}'
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"orgId":'
+                - '"id":'
+          url: https://cloud.mongodb.com/api/atlas/v2/groups
+    depends_on_rule:
+      - rule_id: "kingfisher.mongodb.2"
+        variable: PUBKEY
+
+  - name: MongoDB API PUBLIC Key
+    id: kingfisher.mongodb.2
+    pattern: |
+      (?xi)
+      (?:
+        (?:\b|_|-|\.)
+        (?:mongodb|atlas)
+        (?:\b|_|-|\.)
+      )
+      (?:public|pub|user|id)
+      (?:.|[\n\r]){0,4}?
+      (
+        [A-Z]+
+      )
+      (?:$|[^A-Z0-9/+=-])
+    min_entropy: 2.0
+    confidence: medium
+    visible: false
+    examples:
+      - 'mongodb-public: qj4Zrh8e6A'
+  - name: MongoDB URI Connection String
+    id: kingfisher.mongodb.3
+    pattern: |
+      (?xi)                    
+      \b                      
+      (
+        mongodb(?:\+srv)?://[\S]{3,50}:(?:[\S]{3,88})@[-.%\w/:]+
+      )
+      \b
+    pattern_requirements:
+      ignore_if_contains:
+        - "****"
+        - "xxxx"
+    min_entropy: 3
+    examples:
+      - client = mongoc_client_new ("mongodb+srv://someuser:hunter2@my-atlas-rd941.mongodb.net/test?retryWrites=true&w=majority");
+      - "mongodb+srv://user:passw0rd@cluster0.something.mongodb.net/"
+      - "mongodb://mongoadmin:contoso@something.foo.mongodb.net/myFirstDatabase"
+    validation:
+      type: MongoDB
+  - name: MongoDB Atlas Service Account Token
+    id: kingfisher.mongodb.4
+    pattern: |
+      (?xi)                    
+      \b                      
+      (
+        mdb_sa_sk_[0-9A-Z_-]{6}[0-9A-Z]{34}
+      )
+    min_entropy: 3.5
+    examples:
+      - mdb_sa_sk_BdIX_jLzut2WTgglKzKvSgWMDDj5hEoTqdwOyLOL
+    validation:
+      type: MongoDB

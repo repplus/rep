@@ -1,0 +1,87 @@
+rules:
+  - name: Auth0 Client ID
+    id: kingfisher.auth0.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      auth0
+      (?:.|[\n\r]){0,32}?
+      \b                         
+      (
+        [a-z0-9_-]{32,60}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    visible: false
+    examples:
+      - auth0_client_id = 'dBpXUZS34Rhg6WUKTLLj3E9yWGY6IJgV'
+      - 'auth0ClientId: ''Hf5sS5kLmNm6Lmvoc1BwXryX49bPD4L0'''
+      - AUTH0_CLIENT_ID='abcdef1234567890abcdef1234567890abcdef12'
+    references:
+      - https://auth0.com/docs/get-started/applications/application-settings
+  - name: Auth0 Client Secret
+    id: kingfisher.auth0.2
+    pattern: |
+      (?xi)                       
+      \b                         
+      auth0
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,64}?
+      \b                         
+      (
+        [a-z0-9_-]{64,}
+      ) 
+      \b                         
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'auth0_client_secret: ''v7qhPJv1fDRoUwBjktpWgS8LPVr-hXWOI8tFnRtWrU3jNYZf1hW3hfJjA8rEER9D'''
+      - auth0ClientSecret = 'YOUR_VERY_LONG_AND_SECURE_CLIENT_SECRET_GOES_HERE_12345678900000'
+      - AUTH0_CLIENT_SECRET='abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
+    validation:
+      type: Http
+      content:
+        request:
+          url: https://{{ DOMAIN }}/oauth/token
+          headers:
+            Content-Type: application/x-www-form-urlencoded
+          body: |
+            grant_type=authorization_code&client_id={{ CLIENT_ID }}&client_secret={{ CLIENT_SECRET }}&code=AUTHORIZATION_CODE&redirect_uri=undefined
+          method: POST
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - "access_denied"
+                - "invalid_grant"
+    depends_on_rule:
+      - rule_id: kingfisher.auth0.1
+        variable: CLIENTID
+      - rule_id: "kingfisher.auth0.3"
+        variable: DOMAIN
+  - name: Auth0 Domain
+    id: kingfisher.auth0.3
+    pattern: |
+      (?xi)                       
+      \b                         
+      (                          
+        [a-z0-9]
+        [a-z0-9._-]*
+        auth0\.com
+      )                          
+      \b                         
+    min_entropy: 3.5
+    visible: false
+    confidence: medium
+    examples:
+      - https://mycompany.us.auth0.com/
+      - 'auth0Domain: ''example-org.auth0.com'''
+      - AUTH0_DOMAIN=myapp.eu.auth0.com
+    categories:
+      - domain
+      - auth0

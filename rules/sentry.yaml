@@ -1,0 +1,99 @@
+rules:
+  - name: Sentry Access Token
+    id: kingfisher.sentry.1
+    pattern: |
+      (?xi)
+      sentry
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+          [a-f0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - SENTRY_TOKEN=cbadefcbadefcbadefcbadefcbadefcbadefcbadefcbadefcbadefcbadefcbad
+      - '"sentry-key": "3214567890cbadef3214567890cbadef3214567890cbadef3214567890cbadef"'
+    references:
+      - https://docs.sentry.io/api/auth/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://sentry.io/api/0/projects/
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Sentry Organization Token
+    id: kingfisher.sentry.2
+    pattern: |
+      (?xi)
+      (
+        sntrys_eyJpYXQiO[a-zA-Z0-9+/]{10,200}(?:LCJyZWdpb25fdXJs|InJlZ2lvbl91cmwi|cmVnaW9uX3VybCI6)[a-zA-Z0-9+/]{10,200}={0,2}_[a-zA-Z0-9+/]{43}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.2
+    confidence: medium
+    examples:
+      - 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
+      - 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
+    references:
+      - https://docs.sentry.io/api/auth/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://sentry.io/api/0/projects/
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+
+  - name: Sentry User Token
+    id: kingfisher.sentry.3
+    pattern: |
+      (?xi)
+      (
+        sntryu_[a-f0-9]{64}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - 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
+      - SNTRY_USER="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"
+    references:
+      - https://docs.sentry.io/api/auth/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://sentry.io/api/0/projects/
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

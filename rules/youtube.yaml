@@ -1,0 +1,31 @@
+rules:
+  - name: YouTube API Key
+    id: kingfisher.youtube.1
+    pattern: |
+      (?xi)
+        \b
+        (
+          AIza[a-zA-Z0-9_\-\\]{35}
+        )
+        \b
+    min_entropy: 2.0
+    confidence: medium
+    examples:
+      - '"youtube":{"api_key":"AIzaSyCKHtojSg-UNteBWlLUR2kHSgjGpUScYjk"'
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://www.googleapis.com/youtube/v3/videos?part=id&id=dummy&key={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - "API key not valid"
+                - "keyInvalid"
+                - "API_KEY_INVALID"
+                - "forbidden"
+              match_all_words: false
+              negative: true
+            - type: JsonValid

@@ -1,0 +1,113 @@
+rules:
+  - name: Datadog API Key
+    id: kingfisher.datadog.3
+    pattern: |
+      (?xi)
+      \b
+      (?:datadog|dd)
+      (?:.|[\n\r]){0,64}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Za-z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - DD_API_KEY=0024a29224affe29d173c0bf99e5a89d
+    references:
+      - https://docs.datadoghq.com/account_management/api-app-keys/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.datadoghq.com/api/v1/validate
+          headers:
+            Accept: application/json
+            DD-API-KEY: "{{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+
+  # - name: Datadog API Key
+  #   id: kingfisher.datadog.1
+  #   pattern: |
+  #     (?xi) 
+  #     \b
+  #     datadog
+  #     (?:.|[\n\r]){0,64}?
+  #     (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+  #     (?:.|[\n\r]){0,32}?
+  #     \b                     
+  #     (
+  #       [a-z0-9]{32}
+  #     )
+  #     \b
+  #   pattern_requirements:
+  #     min_digits: 2
+  #   min_entropy: 3.3
+  #   confidence: medium
+  #   examples:
+  #     - datadog-secrettoken-0024a29224affe29d173c0bf99e5a89d
+  #   references:
+  #     - https://docs.datadoghq.com/account_management/api-app-keys/
+  #   validation:
+  #     type: Http
+  #     content:
+  #       request:
+  #         headers:
+  #           Accept: application/json
+  #           DD-API-KEY: '{{ TOKEN }}'
+  #           DD-APPLICATION-KEY: '{{ APPKEY }}'
+  #         method: GET
+  #         response_matcher:
+  #           - report_response: true
+  #           - status:
+  #               - 200
+  #             type: StatusMatch
+  #         url: https://api.datadoghq.com/api/v2/current_user
+  #   depends_on_rule:
+  #     - rule_id: kingfisher.datadog.2
+  #       variable: APPKEY
+
+  # - name: Datadog API Key (API-only validation)
+  #   id: kingfisher.datadog.3
+  #   pattern: |
+  #     (?xi)
+  #     \b
+  #     (?:datadog|dd)
+  #     (?:.|[\n\r]){0,64}?
+  #     (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)?
+  #     (?:.|[\n\r]){0,32}?
+  #     \b
+  #     (
+  #       [A-Za-z0-9]{32}
+  #     )
+  #     \b
+  #   pattern_requirements:
+  #     min_digits: 2
+  #   min_entropy: 3.3
+  #   confidence: medium
+  #   examples:
+  #     - DD_API_KEY=0024a29224affe29d173c0bf99e5a89d
+  #   references:
+  #     - https://docs.datadoghq.com/account_management/api-app-keys/
+  #   validation:
+  #     type: Http
+  #     content:
+  #       request:
+  #         method: GET
+  #         url: https://api.datadoghq.com/api/v1/validate
+  #         headers:
+  #           Accept: application/json
+  #           DD-API-KEY: "{{ TOKEN }}"
+  #         response_matcher:
+  #           - report_response: true
+  #           - type: StatusMatch
+  #             status: [200]

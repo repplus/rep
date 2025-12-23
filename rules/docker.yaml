@@ -1,0 +1,50 @@
+rules:
+  - name: Docker Registry Credentials (auths JSON)
+    id: kingfisher.docker.1
+    pattern: |
+      (?xis)
+      "auths"\s*:\s*\{
+        [^}]*?
+        " (?P<REG> (?:https?:\/\/)? [a-z0-9.\-:+/]+ ) "\s*:\s*\{
+          [^}]*?
+          "auth"\s*:\s*"(?P<B64> [A-Za-z0-9+/=]{16,} )"
+          [^}]*?
+        \}
+        [^}]*?
+      \}
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 2.0
+    confidence: medium
+    examples:
+      - |
+        {
+          "auths": {
+            "quay.io": {
+              "auth": "cmhkaCtyaHRhcDowM1BERl1RQTJQTDlaQUE5T1gzSU9IQjFYTUlXOVNGNU1XRzNSRVRHNThKVXpKMzEwV0ZZRVMOQTdGMExMNOYx"
+            }
+          }
+        }
+      - |
+        {"auths":{"index.docker.io/v1/":{"auth":"dXNlcjp0b2tlbg=="}}}
+    references:
+      - https://distribution.github.io/distribution/spec/api/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: >
+            {%- assign r = REG -%}
+            {%- if r contains "://" -%}
+              {{ r | replace: "/$", "" }}/v2/auth
+            {%- else -%}
+              https://{{ r }}/v2/auth
+            {%- endif -%}
+          headers:
+            Authorization: "Basic {{ B64 }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]

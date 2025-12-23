@@ -1,0 +1,36 @@
+rules:
+  - name: Zhipu (BigModel) API Key
+    id: kingfisher.zhipu.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        [A-F0-9]{32}
+        \.
+        [A-Z0-9]{16}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    examples:
+      - "3494c505cf244a3fb17417d6894d404c.LLSZ2InjarUXEhNr"
+      - "a64cb6a9b4e840919351d041dbe65654.eh1YZt0SAhSTOsNR"
+      - "4d140d7d21c4477ab20d5090e530496c.A5pEbmgcid2deKNA"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://open.bigmodel.cn/api/paas/v4/files"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: "application/json"
+          timeout_seconds: 12
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ["object", "data"]

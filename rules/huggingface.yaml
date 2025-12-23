@@ -1,0 +1,40 @@
+rules:
+  - name: HuggingFace User Access Token
+    id: kingfisher.huggingface.1
+    pattern: |
+      (?xi)
+      (?:
+        (
+          (?:api_org|hf)_
+          (?:[0-9A-Z]{17}){2}
+        )   
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    references:
+      - https://huggingface.co/docs/hub/security-tokens
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'HF_TOKEN:"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"'
+      - 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
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Content-Type: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"name":'
+                - '"id":'
+          url: https://huggingface.co/api/whoami-v2

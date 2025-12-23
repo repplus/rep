@@ -1,0 +1,39 @@
+rules:
+  - name: Together.ai API Key
+    id: kingfisher.together.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        tgp_v1_[A-Z0-9_-]{43}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    examples:
+      - tgp_v1_Tctm6OfOeNkwLIKkyxJxUHIqNKx2AvFr65tQRIOMgzY
+      - tgp_v1_HgWU7iym2128y2Pdj-7-9kX4W_MSCcIT5EhuY_SmNqc
+      - tgp_v1_xeybrcbPy2c10JR9eAlkOq1qvPaBXT3ZbXp8yKq1VME
+      - tgp_v1_yanBH3171P6HAZ01LbzSDlnOiXM3lo_89kG2Gg5yzko
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.together.xyz/v1/models"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: "application/json"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"id":'
+                - '"object":'
+    references:
+      - https://docs.together.ai/reference/authentication
+      - https://docs.together.ai/reference/models-list

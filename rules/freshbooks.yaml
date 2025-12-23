@@ -1,0 +1,36 @@
+rules:
+  - name: FreshBooks Access Token
+    id: kingfisher.freshbooks.1
+    pattern: |
+      (?xi)
+      \b
+      freshbooks
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-z0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - FRESHBOOKS_TOKEN=0f1e2d3c4b5a69788776655443322110ffeeddccbbaa00998877665544332211
+      - '"freshbooksAccess": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"'
+    references:
+      - https://www.freshbooks.com/api/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.freshbooks.com/auth/api/v1/users/me
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

@@ -1,0 +1,36 @@
+rules:
+  - name: Groq API Key
+    id: kingfisher.groq.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        gsk_[a-zA-Z0-9]{52}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.groq.com/openai/v1/models"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"id"'
+                - '"data"'
+              match_all_words: true
+    references:
+      - https://console.groq.com/docs/api-keys
+      - https://console.groq.com/docs/api-reference#models
+    examples:
+      - "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"
+

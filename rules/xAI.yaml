@@ -1,0 +1,38 @@
+rules:
+  - name: xAI (Grok) API Key
+    id:   kingfisher.xai.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        xai-[A-Za-z0-9_-]{70,120}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.8
+    confidence: medium
+    examples:
+      - xai-CNPlxZEZVpxDTRD8N6Luet7LwS2qyuijh7pdHbmNzswLAYSWUeODm8Cav2On1LqgrCewPvGCWxBqSbh3
+      - xai-RoGXl5O4gCeiTW1AtbVbDC3YLOEC3WubJFNSUvzlWq2Lt41kiFHc6P896yxrEMmHBdpC1e8M7fkmXSr8
+      - xai-vogGGUbepTcg1Qft4w2K46BXuS8eQzD6Q294eQhXc4yqHFzC4wfzAvnHM3sUGVvbHNzhqIPdRey8qm13
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.x.ai/v1/language-models
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"Incorrect API key provided'
+              negative: true
+    references:
+      - https://x.ai/api 
+      - https://docs.x.ai/docs/api-reference
+      - https://docs.x.ai/docs/overview
+      - https://docs.x.ai/docs/management-api

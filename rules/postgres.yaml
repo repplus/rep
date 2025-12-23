@@ -1,0 +1,40 @@
+rules:
+  - name: Postgres URL with hardcoded password
+    id: kingfisher.postgres.1
+    pattern: |
+      (?xi)
+      (?:
+        postgres
+        (?:ql)?
+        | postgis
+      )
+      :\/\/
+      (?:
+        [\w]+
+      )
+      :
+      (?:
+        [^\@]+
+      )
+      @
+      (?:
+        [^:\/]+
+      )
+      :
+      (?:
+        \d+
+      )
+    pattern_requirements:
+      ignore_if_contains:
+        - "****"
+        - "xxxx"
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - CONNECTION_URI="postgres://postgres:s2Tf2k@rLMy@google.com:5434/elephant"
+      - Connection URI= postgresql://nimda:vg498hwegw1udp6s@db-postgresql-nyc1-64297-do-user-1243723-0.db.ondigitalocean.com:25060/defaultdb?sslmode=require
+      - CONNECTION_URI="postgres://postgres:s2Tf2k@rLMy@google.com:5434/elephant"
+      - CONNECTION_URI="postgis://postgres:s2Tf2k@rLMy@google.com:5434/elephant"
+      - CONNECTION_URI="postgis://postgres:s2Tf2k@rLMy@google.com:5434/elephant"
+    validation:
+      type: Postgres

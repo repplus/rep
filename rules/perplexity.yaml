@@ -1,0 +1,39 @@
+rules:
+  - name: Perplexity AI API Key
+    id: kingfisher.perplexity.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        pplx-[A-Za-z0-9]{48}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.8
+    confidence: medium
+    examples:
+      - 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
+      - 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
+      - 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
+      - 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
+    references:
+      - https://docs.perplexity.ai/guides/getting-started 
+      - https://pplx.readme.io/reference/post_chat_completions
+      - https://www.perplexity.ai/hub/blog/introducing-pplx-api 
+      - https://docs.litellm.ai/docs/providers/perplexity 
+      - https://developers.cloudflare.com/ai-gateway/providers/perplexity/ 
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.perplexity.ai/chat/completions
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Content-Type: application/json
+          body: '{"model": "kingfisher", "messages": [{ "role": "user", "content": "." }]}'
+          response_matcher:
+            - report_response: false
+            - type: WordMatch
+              match_all_words: false

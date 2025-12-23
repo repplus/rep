@@ -1,0 +1,41 @@
+rules:
+  - name: Coze Personal Access Token
+    id: kingfisher.coze.1
+    pattern: |
+      (?xi)
+      coze
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        pat_[A-Z0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 5.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.coze.com/v1/workspaces?"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+            Content-Type: application/json
+          response_matcher:
+            - type: StatusMatch
+              status: [200, 403] # API returns 403 for a valid token without permission to route
+            - type: JsonValid
+            - type: WordMatch
+              words:
+                - '"access token invalid"'
+                - '"does not have permission"'
+              negative: true
+    references:
+      - https://www.coze.com/docs/developer_guides/coze_api_overview
+      - https://www.coze.com/docs/developer_guides/retrieve_files
+    examples:
+      - "key_coze = pat_DlOG7fNcVfmw8cYhPWNcdfwrjjzwDr9EkV8EBjzHdgRWU2DzqHC1pPe0x590NN5f"
+      - "coze_token = pat_93QiTdIvZGuRCFcfGTQJJ1VIYZ9dNHanX88wKoMojwMk3tX5tKqfFtxUp0ux8CjI"
+      - "coze-key: pat_WvUTLYq5yZyaqegkyLSxXJMjXAJotjYEuC1sqT8daFlfwM3BiaRVJIZsER42DnhV"

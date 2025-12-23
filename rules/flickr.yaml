@@ -1,0 +1,74 @@
+rules:
+  - name: Flickr API Key
+    id: kingfisher.flickr.1
+    pattern: |
+      (?xi)
+      \b
+      flickr
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-f0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://www.flickr.com/services/rest/?method=flickr.test.login&api_key={{TOKEN}}&format=json&nojsoncallback=1"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"Invalid API Key'
+              negative: true
+    references:
+      - https://www.flickr.com/services/api/
+      - https://www.flickr.com/services/api/flickr.test.login.html
+    examples:
+      - "flickr_api_key: d1953fb62a9798593bfdb4287ed2423e"
+  - name: Flickr OAuth Token
+    id: kingfisher.flickr.2
+    pattern: |
+      (?xi)
+      \b
+      flickr
+      (?:.|[\n\r]){0,32}?
+      (?:OAUTH|ACCESS|TOKEN)?
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-f0-9]{32}
+      )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://www.flickr.com/services/rest/?method=flickr.auth.oauth.checkToken&api_key={{TOKEN}}&oauth_token={{TOKEN}}&format=json&nojsoncallback=1"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"stat":"ok"'
+                - '"oauth":'
+              match_all_words: true
+    references:
+      - https://www.flickr.com/services/api/
+      - https://www.flickr.com/services/api/flickr.auth.oauth.checkToken.html
+    examples:
+      - "flickr_oauth_token: a8c1b9f1d9d34aa5a1edbd43234bcdef"

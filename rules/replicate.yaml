@@ -1,0 +1,41 @@
+rules:
+  - name: Replicate API Token
+    id: kingfisher.replicate.1
+    pattern: |
+      (?x)
+      \b        
+      (                 
+        r8_            
+        [A-Za-z0-9]{37}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 3
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - r8_WesXNvqsCpq7r1gpQABpB3NJvdR21nb2s7HVy
+      - r8_Lvn3Tsrs8H2wCYSEPDiUfyePqWpBOWi0vQTtN
+      - r8_XOpqpi4q9UADwsgrbEjCpT9p1cDldUu3t1D8R
+      - r8_ap8Mo5iTbW01FHJtElPrBUqf7fjz1r40EVrJu
+    references:
+      - https://replicate.com/docs/reference/http
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.replicate.com/v1/account
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"type"'
+                - '"username"'
+                - '"name"'

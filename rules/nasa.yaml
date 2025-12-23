@@ -1,0 +1,38 @@
+rules:
+  - name: NASA API Key
+    id: kingfisher.nasa.1
+    pattern: |
+      (?xi)
+      \b
+      nasa\.gov/.{0,200}
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    examples:
+      - |
+          get('https://api.nasa.gov/planetary/earth/imagery?api_key=fWfSMcDzyHfMuH8BW6jiIUBYaj0hKRyKBRTBqgEQ')
+            .then(...)
+    references:
+      - https://api.nasa.gov
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.nasa.gov/planetary/apod?date=1995-06-16&api_key={{ TOKEN }}
+          headers:
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch         
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"url":'

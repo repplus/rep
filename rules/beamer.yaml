@@ -1,0 +1,37 @@
+rules:
+  - name: Beamer API token
+    id: kingfisher.beamer.1
+    pattern: |
+      (?xi)
+      \b
+      beamer
+      (?:.|[\n\r]){0,64}?
+      \b
+      (
+        b_[A-Z0-9=_\\/\\\-+]{44}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - beamer = b_ByDfulghxvvmHbArJSFfQhxemJPQHOwplxuydlKEEbfe
+      - "BEAMER_key = 'b_ByDfulghxvvmHbArJSFfQhxemJPQHOwplxuydlKEEbfe'"
+    references:
+      - https://getbeamer-api.pages.dev/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Beamer-Api-Key: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+              type: WordMatch
+              words:
+                - '"name":'
+          url: https://api.getbeamer.com/v0/ping

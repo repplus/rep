@@ -1,0 +1,82 @@
+rules:
+  - name: Coinbase Access Token
+    id: kingfisher.coinbase.1
+    pattern: |
+      (?xi)
+      \b
+        coinbase
+        (?:.|[\n\r]){0,16}?
+        (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+        (?:.|[\n\r]){0,16}?
+        \b
+        (
+          [a-z-0-9]{32}
+        )
+        \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - coinbase_token = 32iAkQCcHHYxXGx20VogBZoj27PC1ouI
+    references:
+      - https://docs.cloud.coinbase.com/wallet-sdk/docs/api-keys
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.coinbase.com/v2/user
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+  - name: Coinbase CDP API Key (ECDSA)
+    id: kingfisher.coinbase.2
+    pattern: |
+      (?xims)
+        "name"\s*:\s*"
+        (?P<CRED_NAME>organizations/[0-9a-f-]{36}/apiKeys/[0-9a-f-]{36})"
+        .*"privateKey"\s*:\s*"
+        (?P<PRIVATE_KEY>
+          -----BEGIN\sEC\s{0,1}
+          PRIVATE\sKEY
+          (\sBLOCK)?
+          -----
+          [a-z0-9 /+=\r\n\\n]{32,}?
+          -----END\s
+          (?:
+            RSA |
+            PGP |
+            DSA |
+            OPENSSH |
+            ENCRYPTED |
+            EC
+          )?
+          \s{0,1}
+          PRIVATE\sKEY
+          (\sBLOCK)?
+          -----
+        )
+    validation:
+      type: Coinbase
+    examples:
+      - |
+        {
+          "name": "organizations/243873d8-c14e-436d-9cea-10d530cbe201/apiKeys/d29bb143-ad4c-234f-9bd7-c705c16b6d19",
+          "privateKey": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIDs+vr9F40Mer+qYksK3QhkSMfUXOZsbRVSrelWGnMh3oAoGCCqGSM49\nAwEHoUQDQgAEOXj2qKzLYx21D3plbOa81ilURS/4K1jzLXBvgwfUe4hWDgBdKQvq\nIiet5qqZEwVlR/LqKQEUlP8YLrjLFU8Unw==\n-----END EC PRIVATE KEY-----\n"
+        }
+  - name: Coinbase CDP API Key (Ed25519)
+    id: kingfisher.coinbase.3
+    pattern: |
+      (?xis)
+      "id"\s*:\s*"(?P<CRED_NAME>[0-9a-f-]{36})"[^{]*?"privateKey"\s*:\s*"(?P<PRIVATE_KEY>[A-Za-z0-9+/=]{88})"
+    validation:
+      type: Coinbase
+    examples:
+      - |
+        {
+          "id": "413b23bf-4582-4e57-b33a-85d9527d9972",
+          "privateKey": "ygWq07YCO8UkmC9BE0PDBJNGhiu80yslsMUF9WnjPaIF5DBxb/wljjRuHhfuR/AMPC+kdgtL+mWKq/HOnq/YcQ=="
+        }

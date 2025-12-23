@@ -1,0 +1,40 @@
+rules:
+  - name: Clarifai API Key
+    id: kingfisher.clarifai.1
+    pattern: |
+      (?xi)             
+      \b
+      clarifai
+      (?:.|[\n\r]){0,32}?
+      \b
+      (                  
+        [0-9a-f]{32,36}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - clarifai_key = 29ee853d47364107b9edf5e5ad4374c2
+      - "clarifai_token: eb3cf5440b7b45f8954bb4a1fcea0ea5"
+      - clarifai-secret = 8e43e018f61b493c8104024ee124a57f
+      - clarifai_api = cf3cacafabe747988298298bffcbb459
+    references:
+      - https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/clarifai_key
+      - https://docs.clarifai.com/control/authentication/key/ 
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.clarifai.com/v2/models
+          headers:
+            Authorization: Key {{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"code":10000'
+                - '"description":"Ok"'

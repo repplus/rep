@@ -137,11 +137,164 @@ AI can speed you up, but you’re responsible for the code you submit. Please:
 - **`network/`**: Request/response handling
 - **`features/`**: Feature implementations
 
+## Adding Kingfisher Rules
+
+rep+ uses [Kingfisher](https://github.com/mongodb/kingfisher) rules for secret detection. These rules are stored locally in the `rules/` directory as YAML files.
+
+### Step 1: Get the Rule from Kingfisher
+
+1. Browse the [Kingfisher rules repository](https://github.com/mongodb/kingfisher/tree/main/data/rules)
+2. Find the rule file you want to add (e.g., `aws.yaml`, `github.yaml`)
+3. Copy the YAML content for the specific rule(s) you need
+
+### Step 2: Add the Rule File
+
+1. **Create or edit a YAML file** in the `rules/` directory:
+   ```bash
+   rules/your-service.yaml
+   ```
+
+2. **Add the rule structure**:
+   ```yaml
+   rules:
+     - name: Your Service API Key
+       id: kingfisher.yourservice.1
+       pattern: |
+         (?xi)
+         \b
+         (
+           your-service-[A-Z0-9]{32,64}
+         )
+         \b
+       pattern_requirements:
+         min_digits: 2
+         min_uppercase: 1
+       min_entropy: 3.5
+       confidence: medium
+       examples:
+         - your-service-ABC123XYZ789
+   ```
+
+3. **Update the manifest** (optional but recommended):
+   - Edit `rules/_manifest.json` and add your new file to the `files` array:
+   ```json
+   {
+     "files": [
+       "slack.yaml",
+       "aws.yaml",
+       "yourservice.yaml"
+     ]
+   }
+   ```
+   - If `_manifest.json` doesn't exist, rules will be auto-discovered from common filenames
+
+### Step 3: Rule Structure Reference
+
+Kingfisher rules follow this structure:
+
+```yaml
+rules:
+  - name: Human-readable name
+    id: kingfisher.service.1  # Unique identifier
+    pattern: |               # PCRE-compatible regex pattern
+      (?xi)                  # Flags: x=extended, i=case-insensitive
+      \b
+      (your-pattern-here)
+      \b
+    pattern_requirements:    # Optional validation
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+      min_special_chars: 1
+      ignore_if_contains:    # Skip if contains these terms
+        - "test"
+        - "example"
+    min_entropy: 3.5         # Minimum entropy threshold
+    confidence: medium       # low, medium, or high
+    examples:                # Example matches
+      - example-secret-123
+    validation:              # Optional HTTP validation
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: POST
+          url: https://api.example.com/validate
+```
+
+### Step 4: Test Your Rule
+
+1. **Reload the extension** in Chrome (`chrome://extensions/` → Reload)
+2. **Open DevTools** → rep+ tab → **Extractors** → **Secrets**
+3. **Capture requests** that contain the secret type you're testing
+4. **Click "Start Scan"** and verify your rule detects the secrets
+
+### Step 5: PCRE to JavaScript Conversion
+
+⚠️ **Important**: Kingfisher uses PCRE (Perl Compatible Regular Expressions), but JavaScript uses a different regex engine. The conversion handles:
+
+- ✅ Inline flag groups: `(?i:...)` → converted to global flags
+- ✅ Named groups: `(?P<name>...)` → `(?<name>...)`
+- ✅ Extended mode: `(?x)` flag strips whitespace and comments
+- ✅ Standalone flags: `(?i)`, `(?s)` in the middle of patterns
+
+**If your rule fails to compile**, check:
+- Balanced parentheses
+- Valid character classes `[...]`
+- Properly escaped special characters
+- No unsupported PCRE features (e.g., variable-length lookbehind)
+
+### Example: Adding a New Service
+
+Let's say you want to add detection for "MyAPI" tokens:
+
+1. **Create `rules/myapi.yaml`**:
+   ```yaml
+   rules:
+     - name: MyAPI Token
+       id: kingfisher.myapi.1
+       pattern: |
+         (?xi)
+         \b
+         (
+           myapi_[A-Z0-9]{40}
+         )
+         \b
+       pattern_requirements:
+         min_digits: 2
+         min_uppercase: 1
+       min_entropy: 3.5
+       confidence: medium
+       examples:
+         - myapi_ABC123XYZ789DEF456UVW012GHI345JKL678
+   ```
+
+2. **Add to `rules/_manifest.json`**:
+   ```json
+   {
+     "files": [
+       "slack.yaml",
+       "aws.yaml",
+       "myapi.yaml"
+     ]
+   }
+   ```
+
+3. **Test**: Reload extension → Capture a request with `myapi_...` token → Scan → Verify detection
+
+### Resources
+
+- [Kingfisher Project](https://github.com/mongodb/kingfisher) - Source of rule definitions
+- [Kingfisher Rules Directory](https://github.com/mongodb/kingfisher/tree/main/data/rules) - Browse available rules
+- [PCRE Documentation](https://www.pcre.org/original/doc/html/) - Regex pattern reference
+
 ## Need Help?
 
 - Check existing features for examples (`features/ai/`, `features/bulk-replay/`)
 - Review how events are used in `ui/request-list.js` and `ui/request-editor.js`
 - Look at `main.js` to see how features are initialized
+- Check existing rules in `rules/` directory for examples
 
 Happy contributing! 🚀
 

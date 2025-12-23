@@ -8,6 +8,7 @@ class JSONFormatter {
 
     format(body, expandDepth = 5) {
         this.expandDepth = expandDepth;
+        const warningBar = document.querySelector('#res-view-json .json-warning-bar');
         
         try {
             const obj = JSON.parse(body);
@@ -16,9 +17,20 @@ class JSONFormatter {
             // Add formatted content
             container.innerHTML = this.valueToHTML(obj, 0);
             this.attachEventListeners(container);
+            // Hide warning bar for valid JSON
+            warningBar.style.display = 'none';
             return container;
         } catch (e) {
-            return escapeHtml(body);
+            if (body)
+                warningBar.style.display = 'flex';
+            else
+                warningBar.style.display = 'none';
+
+            // Return raw content
+            const contentContainer = document.createElement('pre');
+            contentContainer.className = 'json-raw-content';
+            contentContainer.textContent = body;
+            return contentContainer;
         }
     }
 

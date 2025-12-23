@@ -1,0 +1,43 @@
+rules:
+  - name: Age Recipient (X25519 public key)
+    id: kingfisher.age.1
+    pattern: |
+      (?xi)
+      (
+        age1[0-9a-z]{58}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'age1zvkyg2lqzraa2lnjvqej32nkuu0ues2s82hzrye869xeexvn73equnujwj'
+    references:
+      - https://age-encryption.org
+      - https://htmlpreview.github.io/?https://github.com/FiloSottile/age/blob/main/doc/age.1.html
+      - https://github.com/C2SP/C2SP/blob/8b6a842e0360d35111c46be2a8019b2276295914/age.md#the-x25519-recipient-type
+
+  - name: Age Identity (X22519 secret key)
+    id: kingfisher.age.2
+    pattern: |
+      (?xi)
+      (
+        AGE-SECRET-KEY-1[0-9A-Z]{58}
+      )
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        # created: 2022-09-26T21:55:47-05:00
+        # public key: age1epzmwwzw8n09slh0c7z1z52x43nnga7lkksx3qrh07tqz5v7lcys45428t
+        this is the 'AGE-SECRET-KEY-1HJCRJVK7EE3A5N8CRP8YSEUGZKNW90Y5UR2RGYAS8L279LFP6LCQU5ADNR'
+      - 'AGE-SECRET-KEY-1HJCRJVK7EE3A5N8CRP8YSEUGZKNW90Y5UR2RGYAS8L279LFP6LCQUEGAEX'
+    references:
+      - https://age-encryption.org
+      - https://htmlpreview.github.io/?https://github.com/FiloSottile/age/blob/main/doc/age.1.html
+      - https://github.com/C2SP/C2SP/blob/8b6a842e0360d35111c46be2a8019b2276295914/age.md#the-x25519-recipient-type
+    categories:
+      - secret

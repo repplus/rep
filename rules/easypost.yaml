@@ -1,0 +1,32 @@
+rules:
+  - name: EasyPost API token
+    id: kingfisher.easypost.1
+    pattern: |
+      (?x)
+      \b
+      (
+        EZ[AT]K
+        [A-Za-z0-9]{54}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - '"EZTKXxNbJDeDLDyrXuIgHd3cr1YmP7MFqY9cHAPYMOXhUN8nJ671JKaGME"'
+      - EZAK1234abcd5678efgh9012ijkl3456mnop7890qrst1234uvwx5678yz
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Basic {{ TOKEN | append: ":" | b64enc }}'
+            Content-Type: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.easypost.com/v2/shipments?page_size=5

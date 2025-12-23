@@ -1,0 +1,38 @@
+rules:
+  - name: Apify API Token
+    id: kingfisher.apify.1
+    pattern: |
+      (?xi)
+      (
+        apify_api_[A-Z0-9]{34,38}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.apify.com/v2/users/me"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"data"'
+                - '"username"'
+              match_all_words: true
+    references:
+      - https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/apify_token
+      - https://docs.apify.com/api/v2#/reference/users/user-object/get-user-public-profile-or-me
+      - https://docs.apify.com/api/v2/users-me-get
+    examples:
+      - "apify_api_NcjXcxEz2XL1irjppyWSHvjghalQOd1LXOHv"
+      - "apify_api_9uyewBxQUF1EXWdKVc4lNaTSM461Ls4oQouz"

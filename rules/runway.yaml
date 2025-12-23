@@ -1,0 +1,42 @@
+rules:
+  - name: Runway API Key
+    id: kingfisher.runway.1
+    pattern: |          
+      (?x)
+      \b
+      (               
+        key_    
+        [A-Fa-f0-9]{128} 
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - key_efef51067da4873eeefa5e3daeeff61537885e52e20e053a824bb5e564d3d707367d005e7d48dbe473de287383356a5abd77421703e1a3e52a27d17f703abe20
+      - key_7ab2eab6623761354e72f7de76ea041ee3fd73db8e20b5e1173f1e7537ae5ad3e503267e4da374e650715e457e558724bf7bcb170e723bb3fff6445aa2830784
+      - key_5a37de4ea80f355afa4aa653d67e8b6db08aaefd0704a773f1584e40236e4d54bf7f78974e8ed07f72e6a6787e66872127a577046743e3e4117ed7b14adeeeb8
+      - key_10eb4a74b40672ddee1716ed008637a7aed5176b70eee76017b4e8e5713b8ab12720a8e4768dfe3e47073f86f718286eee814ffea20e271dd5d87ee8d367f8aa
+    references:
+      - https://docs.dev.runwayml.com/guides/setup
+      - https://api.useapi.net/v1/runwayml/accounts
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.dev.runwayml.com/v1/organization
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+            X-Runway-Version: "2024-11-06"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"usage"'

@@ -1,0 +1,56 @@
+rules:
+  - name: LangSmith Personal Access Token
+    id: kingfisher.langchain.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        lsv2_(?:pt)_[0-9a-f]{32}_[0-9a-f]{10}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.0
+    examples:
+      - "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"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.smith.langchain.com/api/v1/api-key/current"
+          headers:
+            X-API-Key: "{{ TOKEN }}"
+            Accept: "application/json"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+  - name: LangSmith Service Key
+    id: kingfisher.langchain.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        lsv2_sk_[0-9a-f]{32}_[0-9a-f]{10}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.0
+    examples:
+      - "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"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.smith.langchain.com/api/v1/orgs/current"
+          headers:
+            X-API-Key: "{{ TOKEN }}"
+            Accept: "application/json"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]

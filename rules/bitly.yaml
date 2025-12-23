@@ -1,0 +1,38 @@
+rules:
+  - name: Bitly Access Token
+    id: kingfisher.bitly.1
+    pattern: |
+      (?xi)
+      \b
+      bitly
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [a-f0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api-ssl.bitly.com/v4/user"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"login":'
+    references:
+      - https://dev.bitly.com/api-reference#Authentication
+    examples:
+      - "bitly_token = 20e9817b9c5ddde1b0cec7622bfc557dbc823791"

@@ -1,0 +1,63 @@
+rules:
+  - name: Stripe Publishable Key
+    id: kingfisher.stripe.1
+
+    pattern: |
+      (?xi)
+      (?:stripe|strp)
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      (                                               
+        pk_live_                                  
+        (?:[0-9A-Z]{6}){4,30}
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.3
+    confidence: medium
+    categories: [api, key]
+    examples:
+      - stripe_pub_key = pk_live_HQS0j4H75XpthOW87eY1sXa2BYz3Ab
+
+  - name: Stripe Secret / Restricted Key
+    id: kingfisher.stripe.2
+
+    pattern: |
+      (?xi)
+      (?:stripe|strp)
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      (
+        (?:                                           
+          sk|rk                                        
+        )_live_
+        (?:[0-9A-Z]{8}){3,25}                    
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - stripe_secret_key = sk_live_f01c79xuuug7yodgzj5ws0h1x2kyvho3
+      - "strp_sec_key: rk_live_4haG9YwGkL2hXqTj5pSzo8FzB3uCwE7n"
+
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          url: https://api.stripe.com/v1/account        
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]                             
+            - type: WordMatch
+              match_all_words: true
+              words: ['"object":"account"']

@@ -3,8 +3,10 @@ import { state } from '../core/state.js';
 import { getHostname, highlightHTTP } from '../core/utils/network.js';
 import { events, EVENT_NAMES } from '../core/events.js';
 import { filterRequests } from './request-list.js';
-import { selectRequest, switchRequestView, switchResponseView, toggleLayout } from './request-editor.js';
+import { selectRequest, switchRequestView, switchResponseView, toggleLayout, initPreviewControls, updatePreview } from './request-editor.js';
 import { updateHistoryButtons } from './ui-utils.js';
+import { generateHexView } from './hex-view.js';
+import { generateJsonView } from './json-view.js';
 
 // DOM Elements (initialized in initUI)
 export const elements = {};
@@ -17,6 +19,9 @@ export function initUI() {
     elements.useHttpsCheckbox = document.getElementById('use-https');
     elements.sendBtn = document.getElementById('send-btn');
     elements.rawResponseDisplay = document.getElementById('raw-response-display');
+    elements.rawResponseText = document.getElementById('raw-response-text');
+    elements.hexResponseDisplay = document.getElementById('res-hex-display');
+    elements.jsonResponseDisplay = document.getElementById('res-json-display');
     elements.resStatus = document.getElementById('res-status');
     elements.resTime = document.getElementById('res-time');
     elements.resSize = document.getElementById('res-size');
@@ -35,7 +40,10 @@ export function initUI() {
     elements.diffToggle = document.querySelector('.diff-toggle');
     elements.showDiffCheckbox = document.getElementById('show-diff');
     elements.toggleGroupsBtn = document.getElementById('toggle-groups-btn');
+    elements.toggleObjectsBtn = document.getElementById('toggle-objects-btn');
     elements.colorFilterBtn = document.getElementById('color-filter-btn');
+    elements.toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+    elements.showSidebarBtn = document.getElementById('show-sidebar-btn');
 
     // Color Filter Logic
     if (elements.colorFilterBtn) {
@@ -250,6 +258,18 @@ export function initUI() {
             elements.rawRequestInput.innerText = rawReqTextarea.value;
             // Trigger highlight update if needed, or just keep sync
         });
+
+        // Hotkey: Ctrl/Cmd + Enter in raw textarea → Send request
+        rawReqTextarea.addEventListener('keydown', (e) => {
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const modKey = isMac ? e.metaKey : e.ctrlKey;
+            if (modKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (elements.sendBtn) {
+                    elements.sendBtn.click();
+                }
+            }
+        });
     }
 
     // Layout Toggle
@@ -261,6 +281,53 @@ export function initUI() {
         if (savedLayout === 'vertical') {
             toggleLayout(false); // false to not save again (optimization) or just call it
         }
+    }
+
+    // Sidebar hide/show toggle
+    const toggleSidebarVisibility = (hidden) => {
+        const container = document.querySelector('.container');
+        if (!container) return;
+        
+        if (hidden) {
+            container.classList.add('sidebar-hidden');
+        } else {
+            container.classList.remove('sidebar-hidden');
+        }
+        
+        // Update sidebar button (inside sidebar)
+        if (elements.toggleSidebarBtn) {
+            elements.toggleSidebarBtn.classList.toggle('active', hidden);
+            const label = hidden ? 'Show sidebar' : 'Hide sidebar';
+            elements.toggleSidebarBtn.title = label;
+            elements.toggleSidebarBtn.setAttribute('aria-label', label);
+        }
+        
+        // Update show sidebar button (in request pane)
+        if (elements.showSidebarBtn) {
+            elements.showSidebarBtn.style.display = hidden ? 'flex' : 'none';
+        }
+        
+        localStorage.setItem('rep_sidebar_hidden', hidden ? '1' : '0');
+    };
+
+    if (elements.toggleSidebarBtn) {
+        elements.toggleSidebarBtn.addEventListener('click', () => {
+            const container = document.querySelector('.container');
+            const isHidden = container && container.classList.contains('sidebar-hidden');
+            toggleSidebarVisibility(!isHidden);
+        });
+    }
+
+    if (elements.showSidebarBtn) {
+        elements.showSidebarBtn.addEventListener('click', () => {
+            toggleSidebarVisibility(false);
+        });
+    }
+
+    // Load saved sidebar state
+    const savedSidebar = localStorage.getItem('rep_sidebar_hidden');
+    if (savedSidebar === '1') {
+        toggleSidebarVisibility(true);
     }
 
     // Set up event listeners for decoupled communication
@@ -340,6 +407,20 @@ function setupEventListeners() {
             elements.rawResponseDisplay.innerHTML = highlightHTTP(content || '');
             elements.rawResponseDisplay.style.display = 'block';
             elements.rawResponseDisplay.style.visibility = 'visible';
+        }
+        if (elements.rawResponseText)
+            elements.rawResponseText.textContent = content;
+        if (elements.hexResponseDisplay)
+            elements.hexResponseDisplay.textContent = generateHexView(content);
+        if (elements.jsonResponseDisplay) {
+            elements.jsonResponseDisplay.innerHTML = '';
+            elements.jsonResponseDisplay.appendChild(generateJsonView(content));
+        }
+
+        // Update preview if it's currently active
+        const previewView = document.getElementById('res-view-preview');
+        if (previewView && previewView.style.display !== 'none' && previewView.classList.contains('active')) {
+            updatePreview(content || '');
         }
     });
 
@@ -430,6 +511,6 @@ function setupEventListeners() {
 
 // Re-export everything from split modules
 export { renderRequestList, renderRequestItem, filterRequests, createRequestItemElement, createPageGroup, createDomainGroup } from './request-list.js';
-export { selectRequest, switchRequestView, switchResponseView, toggleLayout } from './request-editor.js';
+export { selectRequest, switchRequestView, switchResponseView, toggleLayout, initPreviewControls } from './request-editor.js';
 export { toggleStar, toggleGroupStar, setTimelineFilter, toggleAllGroups, getFilteredRequests, setRequestColor } from './request-actions.js';
-export { updateHistoryButtons, clearAllRequestsUI, setupResizeHandle, setupSidebarResize, setupContextMenu, setupUndoRedo, captureScreenshot, exportRequests, importRequests } from './ui-utils.js';
+export { updateHistoryButtons, clearAllRequestsUI, setupResizeHandle, toggleAllObjects, setupSidebarResize, setupContextMenu, setupUndoRedo, captureScreenshot, exportRequests, importRequests } from './ui-utils.js';

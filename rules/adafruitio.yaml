@@ -1,0 +1,33 @@
+rules:
+  - name: Adafruit IO Key
+    id: kingfisher.adafruitio.1
+    pattern: |
+      (?x)
+      \b
+      (
+        aio_
+        [a-zA-Z]{4}
+        [0-9]{2}
+        [a-zA-Z0-9]{22}
+      )
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - ADAFRUIT_AIO_KEY      = "aio_giXk31KzM05IVxHRwJwtpNGClUE5"
+    validation:
+      type: Http
+      content:
+        request:
+          url: https://io.adafruit.com/api/v2/kingfishermdb/feeds/
+          headers:
+            X-AIO-Key: "{{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: WordMatch
+              words:
+                - '"username"'

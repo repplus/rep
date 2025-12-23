@@ -1,0 +1,39 @@
+rules:
+  - name: Linear API Key
+    id: kingfisher.linear.1
+    pattern: |
+      (?xi)                   
+      \b                     
+      (                      
+        lin_api_
+        (?:[0-9A-Z]{8}){5}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2      
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - linear_api_key = lin_api_2thngjik222gkiihzivh242LU7zvkdvdgB14B41S
+      - lin_api_token:"lin_api_9A6bCDeF0Gh1Ij2Klm3No4PQr5St6Uv7Wx8YZaBc"
+    references:
+      - https://linear.app/developers/graphql
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          headers:
+            Authorization: '{{ TOKEN }}'
+            Content-Type: application/json
+          body: >
+            {
+              "query": "query { issues(first: 1) { nodes { id } } }"
+            }
+          url: https://api.linear.app/graphql 
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"issues":', '"nodes":']

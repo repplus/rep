@@ -1,0 +1,19 @@
+rules:
+  - name: crates.io API Key
+    id: kingfisher.cratesio.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        cio[A-Z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'Bearer: ciotgp8BGZBlX192iExSQPm0SrUlBunG8zd'
+    references:
+      - https://crates.io/data-access
+      - https://github.com/rust-lang/crates.io/blob/master/src/util/token.rs

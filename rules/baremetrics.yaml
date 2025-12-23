@@ -1,0 +1,35 @@
+rules:
+  - name: Baremetrics API Key
+    id: kingfisher.baremetrics.1
+    pattern: |
+      (?xi)
+      \b
+      baremetrics
+      (?:.|[\n\r]){0,32}?
+      \b                         
+      (
+        [a-z0-9_-]{25}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    references:
+      - https://developers.baremetrics.com/reference/sources
+    examples:
+      - baremetrics_api_key = "12345abcdef67890abcdef123"
+      - "BAREMETRICS_API_KEY:'abcde12345fghij67890klmno'"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.baremetrics.com/v1/sources

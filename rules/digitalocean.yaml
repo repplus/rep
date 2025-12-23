@@ -1,0 +1,66 @@
+rules:
+  - name: DigitalOcean API Key
+    id: kingfisher.digitalocean.1
+    pattern: |
+      (?x)
+      \b
+      (
+        (?:dop|doo)_v1_
+        [a-f0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dop_v1_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      - 'token         = "dop_v1_ef0e04edc13918192246e0c90f0735c7f4db7a5a036a857e48d6cc98f1c9576b"'
+
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.digitalocean.com/v2/projects?per_page=1
+
+  - name: DigitalOcean Refresh Token
+    id: kingfisher.digitalocean.2
+    pattern: |
+      (?x)
+      (
+        dor_v1_
+        [a-f0-9]{64}
+      )
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dor_v1_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      - '  "refresh_token": "dor_v1_d6ce5b93104521c47be0b580e9296454ef4a319b02b5513469f0ec71d99af2e2",'
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://cloud.digitalocean.com/v1/oauth/token
+          headers:
+            Content-Type: application/json
+            Accept: application/json
+          body: |
+            {
+              "grant_type": "refresh_token",
+              "refresh_token": "{{ TOKEN }}"
+            }
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+            - type: JsonValid

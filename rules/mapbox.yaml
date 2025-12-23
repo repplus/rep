@@ -1,0 +1,85 @@
+rules:
+  - name: Mapbox Public Access Token
+    id: kingfisher.mapbox.1
+    pattern: '(?i)(?s)mapbox.{0,30}(pk\.[a-z0-9\-+/=]{32,128}\.[a-z0-9\-+/=]{20,30})\b'
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        mapboxApiKey:
+          'pk.eyJ1Ijoia3Jpc3R3IiwiYSI6ImNqbGg1N242NTFlczczdnBcf99iMjgzZ2sifQ.lUneM-o3NucXN189EYyXxQ'
+    references:
+      - https://docs.mapbox.com/api/accounts/tokens/#token-format
+      - https://docs.mapbox.com/help/getting-started/access-tokens/
+      - https://docs.mapbox.com/help/troubleshooting/how-to-use-mapbox-securely
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+
+  - name: Mapbox Secret Access Token
+    id: kingfisher.mapbox.2
+    pattern: | 
+      (?xi)(?s)
+      mapbox.{0,30}
+      (
+        sk\.[a-z0-9\-+/=]{32,128}\.[a-z0-9\-+/=]{20,30}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "  //mapboxgl.accessToken = 'sk.eyJ1Ijoic2hlbmdsaWgiLCJhIjCf99ttaWF5bDBsMGNlaDJubGZyMGUwZXNmaCJ9.eI8KXNm5zKZXOKh0c8u9vg';"
+      - 'export MAPBOX_SECRET_TOKEN=sk.eyJ1IjoiY2FwcGVsYWVyZSIsImEicf99c1BaTkZnIn0.P4lD1eHeSEx7AsBq1zbJ4g'
+    references:
+      - https://docs.mapbox.com/api/accounts/tokens/#token-format
+      - https://docs.mapbox.com/help/getting-started/access-tokens/
+      - https://docs.mapbox.com/help/troubleshooting/how-to-use-mapbox-securely
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid
+
+  - name: Mapbox Temporary Access Token
+    id: kingfisher.mapbox.3
+    pattern: '(?i)(?s)mapbox.{0,30}(tk\.[a-z0-9\-+/=]{32,128}\.[a-z0-9\-+/=]{20,30})\b'
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "  //mapboxgl.accessToken = 'tk.eyJ1Ijoic2hlbmdsaWgiLCJhIjCf99ttaWF5bDBsMGNlaDJubGZyMGUwZXNmaCJ9.eI8KXNm5zKZXOKh0c8u9vg';"
+      - 'export MAPBOX_TEMP_TOKEN=tk.eyJ1IjoiY2FwcGVsYWVyZSIsImEicf99c1BaTkZnIn0.P4lD1eHeSEx7AsBq1zbJ4g'
+    references:
+      - https://docs.mapbox.com/api/accounts/tokens/#token-format
+      - https://docs.mapbox.com/help/getting-started/access-tokens/
+      - https://docs.mapbox.com/help/troubleshooting/how-to-use-mapbox-securely
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.mapbox.com/styles/v1/mapbox/streets-v11?access_token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid

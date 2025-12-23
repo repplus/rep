@@ -1,0 +1,35 @@
+rules:
+  - name: Kagi API Key
+    id: kingfisher.kagi.1
+    pattern: |
+      (?x)(?s)
+      (?: kagi | KAGI )
+      .{0,100}
+      ( [a-zA-Z0-9_-]{11}\.[a-zA-Z0-9_-]{43} )
+      (?: $ | [^a-zA-Z0-9_-] )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    references:
+      - https://help.kagi.com/kagi/api/search.html
+    examples:
+      - "KAGI_API_KEY='AQAAUPJ-iQc.yLFDzC5RRHzPNDThhulREdoG0Bn3PiZMwJ6yqC6uJLE'"
+      - "https://kagi.com/search?token=uwHBLWXZpgY.STzubkAbVXqpfV39Q6TOfzp43KulJeYWK6-963uz1-o"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://kagi.com/api/v0/search?q=test"
+          headers:
+            Authorization: "Bot {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"data":'
+                - '"results":'
+              match_all_words: true

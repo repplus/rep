@@ -1,0 +1,16 @@
+rules:
+  - name: Django Secret Key
+    id: kingfisher.django.1
+    pattern: |
+      (?x)
+      [DJANGO]\w{0,8}SECRET_KEY
+      .{1,16}?
+      (
+        [A-Za-z0-9*!$@\#&_%^-]{45,55}
+      )
+      \b
+    min_entropy: 4.5
+    confidence: medium
+    examples:
+      - os.environ.get('DJANGO_SECRET_KEY','wwf*2#86t64!fgh6yav$aoeuo@u2o@fy&*gg76q!&%6x_wbduad')
+      - DJANGO_SECRET_KEY = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z"

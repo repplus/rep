@@ -1,0 +1,35 @@
+rules:
+  - name: IpStack API Key
+    id: kingfisher.ipstack.1
+    pattern: |
+      (?xi)
+      \b
+      ipstack
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        (?:[0-9a-f]{16}){2}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - "ipstack_token=123e4567e89b12d3a456426614174000"
+      - "ipstack_key=abcdefabcdefabcdefabcdefabcdef12"
+    references:
+      - https://ipstack.com/documentation
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: http://api.ipstack.com/1.1.1.1?access_key={{ TOKEN }}
+          response_matcher:
+            - type: WordMatch
+              words:
+                - '"ip":"1.1.1.1"'
+                - '"continent_code"'

@@ -1,0 +1,42 @@
+rules:
+  - name: Shopify access token
+    id: kingfisher.shopify.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        (?:shpat|shpca|shppa|shpss)_[a-f0-9]{30,34}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - 'shopify_app_secret: "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"'
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            X-Shopify-Access-Token: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+            - type: WordMatch 
+              match_all_words: true
+              words: ['"shop":']
+          url: https://{{ DOMAIN }}/admin/api/2024-10/shop.json
+    depends_on_rule:
+      - rule_id: "kingfisher.shopify.2"
+        variable: DOMAIN
+
+  - name: Shopify Domain
+    id: kingfisher.shopify.2
+    pattern: (?xi)([a-z0-9-]+\.myshopify\.com)
+    min_entropy: 3.0
+    visible: false
+    examples:
+      - example.myshopify.com

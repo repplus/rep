@@ -1,0 +1,169 @@
+rules:
+  - name: GitLab Private Token
+    id: kingfisher.gitlab.1
+    pattern: |
+      (?xi)
+      \b 
+      (
+        glpat-
+        [0-9A-Z_-]{20}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - glpat-kSaPeOD_-T0JxMi3p28B
+      - |
+        docker build -t tweedledee \
+        -f Dockerfile \
+        --build-arg 'GO_REPO_TOKEN=glpat-tFrjFXD7soVU2fqxuDMh' \
+    references:
+      - https://github.com/diffblue/gitlab/blob/39c63ee83369bf5353256a6b95f3116728edd102/doc/api/personal_access_tokens.md
+      - https://docs.gitlab.com/api/personal_access_tokens/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            PRIVATE-TOKEN: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"id"'
+          url: https://gitlab.com/api/v4/personal_access_tokens/self
+
+  - name: GitLab Runner Registration Token
+    id: kingfisher.gitlab.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        GR1348941[0-9A-Z_-]{20}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    examples:
+      - |
+        sudo gitlab-runner register \
+        --non-interactive \
+        --url "https://gitlab.com/" \
+        --registration-token "GR1348941_iAgdMy7a3NhZaa5oNoH" \
+        --executor "docker" \
+        --docker-image ubuntu:latest \
+        --description "docker-runner" \
+        --tag-list "docker, CICD, App" \
+        --run-untagged="true" \
+        --locked="false" \
+        --access-level="not_protected"
+    references:
+      - https://docs.gitlab.com/api/runners/
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          headers:
+            Content-Type: application/x-www-form-urlencoded
+            Accept: application/json
+          body: token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: 200
+            - type: WordMatch
+              words:
+                - '"token is missing"'
+                - '"403 Forbidden"'
+              negative: true
+          url: https://gitlab.com/api/v4/runners/verify
+
+  - name: GitLab Pipeline Trigger Token
+    id: kingfisher.gitlab.3
+    pattern: |
+      (?xi)
+      \b
+      (
+        glptt-[0-9a-f]{40}
+      )
+    pattern_requirements:
+      min_digits: 2
+    examples:
+      - |
+        curl    \
+        -X POST \
+        --fail  \
+        --no-progress-meter \
+        -F token=glptt-0d66598d696a02da33fb65e2a041f607c68ea50d \
+        -F ref=main
+    references:
+      - https://docs.gitlab.com/api/pipeline_triggers/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            PRIVATE-TOKEN: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: 
+                - 200
+            - type: WordMatch
+              words:
+                - '"token is missing"'
+                - '"403 Forbidden"'
+              negative: true
+          url: https://gitlab.com/api/v4/ci/pipeline_triggers/{{ TOKEN }}
+  - name: GitLab Private Token - Routable Format
+    id: kingfisher.gitlab.4
+    pattern: |
+      (?xi)
+      \b
+      (
+        glpat-
+        (?<base64_payload>[0-9A-Za-z_-]{27,300})
+        \.
+        (?<version>01)
+        \.
+        (?<base36_payload_length>[0-9a-z]{2})
+        (?<crc32>[0-9a-z]{7})
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      # GitLab's RoutableTokenGenerator renders the CRC32 digest as lowercase
+      # base36 with a fixed width of 7 characters. The regex and checksum
+      # expectation mirror that encoding so we only report matches that carry a
+      # valid GitLab-style checksum.
+      checksum:
+        actual:
+          template: "{{ MATCH | suffix: 7 }}"
+          requires_capture: crc32
+        expected: "{{ \"glpat-\" | append: BASE64_PAYLOAD | append: \".01.\" | append: BASE36_PAYLOAD_LENGTH | crc32 | base36: 7 }}"
+        skip_if_missing: true
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - glpat-ymiBP0-I-J6ghspoBPoZxtSC3g7MyHYG0X0r.01.101erjmwl
+    references:
+      - https://github.com/diffblue/gitlab/blob/39c63ee83369bf5353256a6b95f3116728edd102/doc/api/personal_access_tokens.md
+      - https://docs.gitlab.com/api/personal_access_tokens/
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            PRIVATE-TOKEN: '{{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"id"'
+          url: https://gitlab.com/api/v4/personal_access_tokens/self

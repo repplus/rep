@@ -1,0 +1,34 @@
+rules:
+  - name: Kickbox API Key
+    id: kingfisher.kickbox.1
+    pattern: |
+      (?xi)
+      \b
+      kickbox
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9_]+[A-Z0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - kickbox_key=test_abcdefghijklmnopqrstuvwxyzbu9JFVJtII3FINL1rOKcNpveXD4hSMtSDx7opOWd
+      - kickbox_token=live_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789efgh
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.kickbox.com/v2/verify?apikey={{ TOKEN }}&email=kingfisher"
+          response_matcher:
+            - report_response: true
+            - type: JsonValid
+            - type: WordMatch
+              words:
+                - '"success":true'

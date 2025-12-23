@@ -1,0 +1,39 @@
+rules:
+  - name: Pastebin API Key
+    id: kingfisher.pastebin.1
+    pattern: |
+      (?xi)
+      \b
+      pastebin
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9_]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - pastebin_key=zwD26NeyMCvBsR9nxfaybLHD7TcLh22O
+      - pastebin_api_token=zwD26NeyMCvBsR9n_faybLHD7TcLh22O
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://pastebin.com/api/api_login.php    
+          headers:
+            Content-Type: application/x-www-form-urlencoded
+          body: |
+            api_dev_key={{ TOKEN }}&api_user_name=dummy&api_user_password=dummy
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]                                   
+            - type: WordMatch                                
+              words: ['invalid api_dev_key']
+              negative: true

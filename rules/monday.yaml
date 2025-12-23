@@ -1,0 +1,37 @@
+rules:
+  - name: Monday.com API Key
+    id: kingfisher.monday.1
+    pattern: |
+      (?xi)
+      \b
+      monday
+      (?:.|[\n\r]){0,40}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,40}?
+      \b
+      (
+        eyJ[A-Za-z0-9-_]{10,200}\.eyJ[A-Za-z0-9-_]{50,1000}\.[A-Za-z0-9-_]{20,500}
+      )
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - monday SECRET_TOKEN=eyJhbGciOiJIUzI1TiJ9.eyJ0aWQiOjU7OTC4MzIwMywiYWFpIjoxMSwidWlkIjo5NjYwMzk5MCwiaWBkIjoiMjAyNS0xMS0yMVQwMDoyNjoxMy43OCVaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MzI2MDI5MTIsInJnbiI6InVzZTEifQ.wQtV6psL1JqFHdXgRB2J7-qslSyS2I4TYJHtkX9ofvk
+    validation:
+      type: Http
+      content:
+        request: 
+          url: https://api.monday.com/v2
+          method: POST
+          headers:
+            Content-Type: application/json
+            Authorization: '{{ TOKEN }}'
+          body: |
+            {"query": "query { me { id name } }"}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ["data", "me", "id"]
+              match_all_words: true

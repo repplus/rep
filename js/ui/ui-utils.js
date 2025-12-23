@@ -17,8 +17,40 @@ export function updateHistoryButtons() {
     }
 }
 
+export function toggleAllObjects() {
+    const container = document.querySelector('.json-formatter-container');
+    if (!container || !container.innerHTML) return;
+
+    const nodes = container.querySelectorAll('.json-object, .json-array');
+    if (nodes.length == 0) return;
+
+    const hasAnyExpanded = Array.from(nodes).slice(1).some(node =>
+        node.classList.contains('expanded')
+    );
+
+    nodes.forEach((node, index) => {
+        if (index === 0) {
+            // Always keep root expanded (looks better)
+            node.classList.remove('collapsed');
+            node.classList.add('expanded');
+        } else {
+            // Toggle other nodes
+            if (hasAnyExpanded) {
+                node.classList.remove('expanded');
+                node.classList.add('collapsed');
+            } else {
+                node.classList.remove('collapsed');
+                node.classList.add('expanded');
+            }
+        }
+    });
+
+}
+
+
 export function clearAllRequestsUI() {
     clearRequests();
+    state.blockedQueue = [];
     const requestList = document.getElementById('request-list');
     if (requestList) {
         requestList.innerHTML = '';
@@ -31,6 +63,7 @@ export function clearAllRequestsUI() {
 
     // Emit event to clear UI elements
     events.emit('ui:clear-all'); // Using string literal since EVENT_NAMES import would add coupling
+    events.emit('block-queue:updated');
     updateHistoryButtons();
 }
 
@@ -39,6 +72,7 @@ export function setupResizeHandle() {
     const requestPane = document.querySelector('.request-pane');
     const responsePane = document.querySelector('.response-pane');
     const container = document.querySelector('.main-content');
+    const previewIframe = document.getElementById('response-preview-iframe');
 
     if (!resizeHandle || !requestPane || !responsePane) return;
 
@@ -52,6 +86,11 @@ export function setupResizeHandle() {
     resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
         resizeHandle.classList.add('resizing');
+        // Prevent iframe from swallowing mouseup when preview is visible
+        if (previewIframe) {
+            previewIframe.dataset.prevPointerEvents = previewIframe.style.pointerEvents || '';
+            previewIframe.style.pointerEvents = 'none';
+        }
         const isVertical = document.querySelector('.split-view-container').classList.contains('vertical-layout');
         document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
@@ -74,7 +113,16 @@ export function setupResizeHandle() {
         } else {
             const offsetX = e.clientX - containerRect.left;
             const containerWidth = containerRect.width;
-            let percentage = (offsetX / containerWidth) * 100;
+
+            // Enforce minimum pixel widths to avoid layout cracking
+            const minLeftPx = 250;
+            const minRightPx = 250;
+            const clampedOffsetX = Math.min(
+                Math.max(offsetX, minLeftPx),
+                Math.max(containerWidth - minRightPx, minLeftPx)
+            );
+
+            let percentage = (clampedOffsetX / containerWidth) * 100;
             percentage = Math.max(20, Math.min(80, percentage));
 
             requestPane.style.flex = `0 0 ${percentage}%`;
@@ -86,6 +134,10 @@ export function setupResizeHandle() {
         if (isResizing) {
             isResizing = false;
             resizeHandle.classList.remove('resizing');
+            if (previewIframe) {
+                previewIframe.style.pointerEvents = previewIframe.dataset.prevPointerEvents || '';
+                delete previewIframe.dataset.prevPointerEvents;
+            }
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         }
@@ -148,6 +200,16 @@ export function setupUndoRedo() {
         const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
         const modKey = isMac ? e.metaKey : e.ctrlKey;
 
+        // Hotkey: Ctrl/Cmd + Enter → Send request
+        if (modKey && e.key === 'Enter') {
+            e.preventDefault();
+            if (elements.sendBtn) {
+                elements.sendBtn.click();
+            }
+            return;
+        }
+
+        // Hotkeys: Undo / Redo
         if (modKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
             e.preventDefault();
             undo();
@@ -202,6 +264,13 @@ function redo() {
 let currentSelection = null;
 let currentRange = null;
 let storedRangeInfo = null; // Store range info for better recovery
+
+// Helper to escape strings for single-quoted shell contexts (curl/bash)
+function shellEscapeSingle(str) {
+    if (str == null) return '';
+    // Replace ' with '\'' pattern for POSIX shells
+    return String(str).replace(/'/g, `'\\''`);
+}
 
 export function setupContextMenu() {
     // Right-click on editors
@@ -297,6 +366,18 @@ export function setupContextMenu() {
                 currentRange = null;
                 storedRangeInfo = null;
             }
+
+            // Determine if full editor content is selected (only relevant for request editor)
+            const editorText = editor.textContent || editor.innerText || '';
+            const isRequestEditor = editor === elements.rawRequestInput;
+            let isFullSelection = false;
+            if (isRequestEditor && storedRangeInfo && editorText.length > 0) {
+                isFullSelection =
+                    storedRangeInfo.charStart === 0 &&
+                    storedRangeInfo.charEnd === editorText.length;
+            }
+
+            elements.contextMenu.dataset.fullSelection = isFullSelection ? 'true' : 'false';
             
             showContextMenu(e.clientX, e.clientY, editor);
         });
@@ -309,17 +390,40 @@ export function setupContextMenu() {
         }
     });
 
-    // Handle menu item clicks
+    // Handle menu item clicks (encode/decode actions only).
+    // The "Mark Payload (§)" action is handled in the Bulk Replay feature,
+    // so we explicitly ignore it here to avoid clearing the stored selection
+    // before the bulk replay handler runs.
     elements.contextMenu.addEventListener('click', (e) => {
         const item = e.target.closest('.context-menu-item[data-action]');
-        if (item) {
+        if (!item) return;
+
+        // Ignore clicks on disabled items
+        if (item.classList.contains('disabled')) {
+            e.stopPropagation();
+            return;
+        }
+
             e.stopPropagation();
             const action = item.dataset.action;
-            if (action) {
-                handleEncodeDecode(action);
+        if (!action) return;
+
+        // "Mark Payload (§)" is handled elsewhere
+        if (action === 'mark-payload') {
                 hideContextMenu();
-            }
+            return;
         }
+
+        // Copy-as actions (curl, bash, etc.)
+        if (action.startsWith('copy-as-')) {
+            handleCopyAs(action);
+            hideContextMenu();
+            return;
+        }
+
+        // Default: encode/decode actions
+        handleEncodeDecode(action);
+        hideContextMenu();
     });
 
     // Handle submenu positioning
@@ -351,7 +455,30 @@ export function setupContextMenu() {
 }
 
 function showContextMenu(x, y, targetElement) {
-    elements.contextMenu.dataset.target = targetElement === elements.rawRequestInput ? 'request' : 'response';
+    const isRequest = targetElement === elements.rawRequestInput;
+    elements.contextMenu.dataset.target = isRequest ? 'request' : 'response';
+
+    // Configure visibility and enabled state for "Copy as" group
+    const copyAsGroup = elements.contextMenu.querySelector('#ctx-copy-as-group');
+    if (copyAsGroup) {
+        if (!isRequest) {
+            // Hide entirely for response editor
+            copyAsGroup.style.display = 'none';
+        } else {
+            copyAsGroup.style.display = '';
+            const requiresFullItems = copyAsGroup.querySelectorAll('[data-requires-full-selection="true"]');
+            const isFull =
+                elements.contextMenu.dataset.fullSelection &&
+                elements.contextMenu.dataset.fullSelection === 'true';
+            requiresFullItems.forEach(item => {
+                if (isFull) {
+                    item.classList.remove('disabled');
+                } else {
+                    item.classList.add('disabled');
+                }
+            });
+        }
+    }
 
     // Show first to measure, but keep invisible
     elements.contextMenu.style.visibility = 'hidden';
@@ -390,6 +517,9 @@ function hideContextMenu() {
     // Clear stored selected text and range
     if (elements.contextMenu.dataset.selectedText) {
         delete elements.contextMenu.dataset.selectedText;
+    }
+    if (elements.contextMenu.dataset.fullSelection) {
+        delete elements.contextMenu.dataset.fullSelection;
     }
     currentSelection = null;
     currentRange = null;
@@ -682,16 +812,745 @@ function handleEncodeDecode(action) {
     }
 }
 
+/**
+ * Handle "Copy as ..." actions from the context menu.
+ * These operate only on the request editor and require full selection of the request.
+ */
+function handleCopyAs(action) {
+    // Ensure we're on the request editor and full selection is active
+    const targetType = elements.contextMenu.dataset.target;
+    const isFull = elements.contextMenu.dataset.fullSelection === 'true';
+    if (targetType !== 'request' || !isFull) {
+        return;
+    }
+
+    if (!state.selectedRequest || !state.selectedRequest.request) {
+        console.warn('No selected request to copy as curl/bash');
+        return;
+    }
+
+    const req = state.selectedRequest.request;
+    const method = (req.method || 'GET').toUpperCase();
+    const headers = (req.headers || []).filter(h => !h.name.startsWith(':'));
+    const body = req.postData && typeof req.postData.text === 'string' ? req.postData.text : '';
+
+    // Build base curl command
+    const parts = [`curl '${shellEscapeSingle(req.url)}'`];
+    if (method !== 'GET') {
+        parts.push(`-X ${method}`);
+    }
+    headers.forEach(h => {
+        parts.push(`-H '${shellEscapeSingle(`${h.name}: ${h.value}`)}'`);
+    });
+    if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE')) {
+        parts.push(`--data-raw '${shellEscapeSingle(body)}'`);
+    }
+    const curlCommand = parts.join(' \\\n  ');
+
+    let textToCopy = '';
+    if (action === 'copy-as-curl') {
+        textToCopy = curlCommand;
+    } else if (action === 'copy-as-bash') {
+        // PowerShell snippet using Invoke-WebRequest with headers and body
+        const psLines = [];
+        psLines.push(`$headers = @{`);
+        headers.forEach(h => {
+            const key = h.name.replace(/'/g, "''");
+            const val = String(h.value).replace(/'/g, "''");
+            psLines.push(`    '${key}' = '${val}'`);
+        });
+        psLines.push('}');
+        psLines.push('');
+        const methodPs = method === 'GET' ? '' : `-Method '${method}' `;
+        const bodyPs = body && (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE')
+            ? `-Body '${body.replace(/'/g, "''")}' `
+            : '';
+        psLines.push(`Invoke-WebRequest -Uri '${req.url.replace(/'/g, "''")}' ${methodPs}-Headers $headers ${bodyPs}| Select-Object -ExpandProperty Content`);
+        textToCopy = psLines.join('\n');
+    } else if (action === 'copy-as-python') {
+        // Python requests snippet
+        const pyLines = [];
+        pyLines.push('import requests');
+        pyLines.push('');
+        pyLines.push(`url = '${req.url.replace(/'/g, "\\'")}'`);
+        pyLines.push('');
+        pyLines.push('headers = {');
+        headers.forEach(h => {
+            const key = h.name.replace(/'/g, "\\'");
+            const val = String(h.value).replace(/'/g, "\\'");
+            pyLines.push(`    '${key}': '${val}',`);
+        });
+        pyLines.push('}');
+        const methodLower = method.toLowerCase();
+        const canUseShortcut = ['get', 'post', 'put', 'patch', 'delete'].includes(methodLower);
+        const hasBody = body && (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE');
+        if (hasBody) {
+            const bodyEsc = body.replace(/'/g, "\\'");
+            pyLines.push('');
+            pyLines.push(`data = '${bodyEsc}'`);
+            pyLines.push('');
+            if (canUseShortcut) {
+                pyLines.push(`response = requests.${methodLower}(url, headers=headers, data=data)`);
+            } else {
+                pyLines.push(`response = requests.request('${method}', url, headers=headers, data=data)`);
+            }
+        } else {
+            pyLines.push('');
+            if (canUseShortcut) {
+                pyLines.push(`response = requests.${methodLower}(url, headers=headers)`);
+            } else {
+                pyLines.push(`response = requests.request('${method}', url, headers=headers)`);
+            }
+        }
+        pyLines.push('');
+        pyLines.push('print(response.status_code)');
+        pyLines.push('print(response.text)');
+        textToCopy = pyLines.join('\n');
+    } else if (action === 'copy-as-fetch') {
+        // JavaScript fetch snippet (clean, browser-like)
+        const urlEsc = req.url.replace(/'/g, "\\'");
+        const ignoreHeaders = ['host', 'connection', 'content-length'];
+        const filteredHeaders = headers.filter(h => !ignoreHeaders.includes(h.name.toLowerCase()));
+        const hasBody = body && (method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE');
+        const hasCookie = headers.some(h => h.name.toLowerCase() === 'cookie');
+        const refererHeader = headers.find(h => h.name.toLowerCase() === 'referer');
+
+        const jsLines = [];
+        jsLines.push(`fetch('${urlEsc}', {`);
+        jsLines.push(`  method: '${method}',`);
+
+        // Headers
+        if (filteredHeaders.length > 0) {
+            jsLines.push('  headers: {');
+            filteredHeaders.forEach(h => {
+                const key = h.name.toLowerCase().replace(/'/g, "\\'");
+                const val = String(h.value).replace(/'/g, "\\'");
+                jsLines.push(`    '${key}': '${val}',`);
+            });
+            jsLines.push('  },');
+        }
+
+        // Body (if any)
+        if (hasBody) {
+            // Prefer JSON-style literal if content-type is JSON
+            const ct = headers.find(h => h.name.toLowerCase() === 'content-type')?.value || '';
+            if (ct.toLowerCase().includes('application/json')) {
+                jsLines.push(`  body: ${JSON.stringify(body)},`);
+            } else {
+                const bodyEsc = body.replace(/'/g, "\\'");
+                jsLines.push(`  body: '${bodyEsc}',`);
+            }
+        } else {
+            jsLines.push('  body: null,');
+        }
+
+        // Referrer
+        if (refererHeader) {
+            const refEsc = String(refererHeader.value).replace(/'/g, "\\'");
+            jsLines.push(`  referrer: '${refEsc}',`);
+        }
+
+        // Credentials based on presence of cookies
+        if (hasCookie) {
+            jsLines.push(`  credentials: 'include',`);
+        }
+
+        // Mode (reasonable default)
+        jsLines.push(`  mode: 'cors',`);
+        jsLines.push('})');
+        jsLines.push('  .then(res => res.text())');
+        jsLines.push('  .then(console.log)');
+        jsLines.push('  .catch(console.error);');
+        textToCopy = jsLines.join('\n');
+    } else {
+        return;
+    }
+
+    // Copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).catch(err => {
+            console.warn('Failed to write to clipboard via navigator.clipboard, falling back:', err);
+            fallbackCopyText(textToCopy);
+        });
+    } else {
+        fallbackCopyText(textToCopy);
+    }
+}
+
+// Fallback copy implementation for older environments
+function fallbackCopyText(text) {
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    } catch (e) {
+        console.warn('Fallback copy failed:', e);
+    }
+}
+
 export async function captureScreenshot() {
-    // Screenshot logic using html2canvas
-    // For brevity, I'll assume html2canvas is global
+    // Capture only the full request and response content (no headers/search bars),
+    // and make sure the entire text is visible in the image.
+    try {
     if (typeof html2canvas === 'undefined') {
         alert('html2canvas library not loaded');
         return;
     }
 
-    // Implementation omitted for brevity, but should be here
-    console.log('Screenshot captured (mock)');
+        const requestEditor = document.querySelector('#raw-request-input');
+        const responseActiveView = document.querySelector('.response-pane .view-content.active');
+        const responseContentNode = responseActiveView
+            ? responseActiveView.querySelector('#raw-response-display, #raw-response-text, #res-hex-display, pre, textarea') || responseActiveView
+            : null;
+
+        if (!requestEditor || !responseContentNode) {
+            alert('Unable to find request/response content for screenshot.');
+            return;
+        }
+
+        // Build an off-screen container that holds only the editors' content.
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '-99999px';
+        wrapper.style.top = '0';
+        wrapper.style.zIndex = '-1';
+        wrapper.style.background = getComputedStyle(document.body).backgroundColor || '#1e1e1e';
+        wrapper.style.padding = '16px';
+        wrapper.style.display = 'flex';
+        // Match the current layout (horizontal vs vertical) of the main split view
+        const splitView = document.querySelector('.split-view-container');
+        const isVerticalLayout = splitView && splitView.classList.contains('vertical-layout');
+        wrapper.style.flexDirection = isVerticalLayout ? 'column' : 'row';
+        wrapper.style.gap = '16px';
+        wrapper.style.fontFamily = getComputedStyle(document.body).fontFamily || 'monospace';
+        // Constrain the logical width so long tokens can't create a giant canvas
+        const maxWrapperWidth = Math.min(window.innerWidth - 80, 1400);
+        if (Number.isFinite(maxWrapperWidth) && maxWrapperWidth > 0) {
+            wrapper.style.width = `${maxWrapperWidth}px`;
+        }
+
+        // Helper to clone a node (keeping syntax highlighting / colors) into a section
+        const makeSection = (title, sourceNode) => {
+            const section = document.createElement('div');
+            section.style.display = 'flex';
+            section.style.flexDirection = 'column';
+            section.style.gap = '8px';
+            section.style.flex = '1 1 0';
+            section.style.minWidth = '0'; // allow flex shrink without overflow
+
+            const heading = document.createElement('div');
+            heading.textContent = title;
+            heading.style.fontWeight = '600';
+            heading.style.fontSize = '14px';
+            section.appendChild(heading);
+
+            const contentWrapper = document.createElement('div');
+            contentWrapper.style.margin = '0';
+            contentWrapper.style.padding = '8px 10px';
+            contentWrapper.style.borderRadius = '6px';
+            contentWrapper.style.background = getComputedStyle(sourceNode).backgroundColor || 'rgba(0,0,0,0.4)';
+            contentWrapper.style.overflow = 'visible';
+
+            const clone = sourceNode.cloneNode(true);
+            // Avoid duplicate IDs in the document
+            clone.removeAttribute('id');
+            // Ensure cloned content can expand fully
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            clone.style.width = '100%';
+
+            // Explicitly enforce a wrapped, readable layout for the screenshot,
+            // so long tokens (e.g. JWTs) don't make the canvas extremely wide.
+            const srcStyles = getComputedStyle(sourceNode);
+            clone.style.whiteSpace = 'pre-wrap';
+            clone.style.wordBreak = 'break-word';
+            clone.style.overflowWrap = 'break-word';
+            clone.style.fontFamily = srcStyles.fontFamily || 'Consolas, Monaco, monospace';
+            clone.style.fontSize = srcStyles.fontSize || '13px';
+            clone.style.lineHeight = srcStyles.lineHeight || '1.5';
+
+            contentWrapper.appendChild(clone);
+            section.appendChild(contentWrapper);
+            return section;
+        };
+
+        const reqSection = makeSection('Request', requestEditor);
+        const resSection = makeSection('Response', responseContentNode);
+
+        wrapper.appendChild(reqSection);
+        wrapper.appendChild(resSection);
+        document.body.appendChild(wrapper);
+
+        // Let layout settle and render to a canvas
+        const canvas = await html2canvas(wrapper, {
+            backgroundColor: wrapper.style.background,
+            scrollX: 0,
+            scrollY: 0,
+        });
+
+        document.body.removeChild(wrapper);
+
+        // Open the annotation editor so user can highlight/redact before exporting
+        openScreenshotEditor(canvas);
+    } catch (error) {
+        console.error('Screenshot capture failed:', error);
+        alert(`Screenshot failed: ${error.message}`);
+    }
+}
+
+function openScreenshotEditor(imageCanvas) {
+    const modal = document.getElementById('screenshot-editor-modal');
+    const canvas = document.getElementById('screenshot-editor-canvas');
+    const highlightBtn = document.getElementById('screenshot-tool-highlight');
+    const redactBtn = document.getElementById('screenshot-tool-redact');
+    const undoBtn = document.getElementById('screenshot-tool-undo');
+    const redoBtn = document.getElementById('screenshot-tool-redo');
+    const downloadBtn = document.getElementById('screenshot-download-btn');
+    const closeBtn = document.getElementById('screenshot-editor-close');
+    const zoomInBtn = document.getElementById('screenshot-zoom-in');
+    const zoomOutBtn = document.getElementById('screenshot-zoom-out');
+    const zoomValueEl = document.getElementById('screenshot-zoom-value');
+
+    if (!modal || !canvas || !highlightBtn || !redactBtn || !undoBtn || !downloadBtn || !closeBtn) {
+        console.warn('Screenshot editor elements missing');
+        // Fallback: just download the raw screenshot
+        imageCanvas.toBlob((blob) => {
+            if (!blob) {
+                alert('Failed to generate screenshot image.');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `rep-request-response-${timestamp}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        alert('Canvas context not available.');
+        return;
+    }
+
+    // Resize canvas to match the captured image (internal resolution)
+    canvas.width = imageCanvas.width;
+    canvas.height = imageCanvas.height;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imageCanvas, 0, 0);
+
+    // Annotation state
+    let currentTool = 'highlight'; // 'highlight' | 'redact'
+    let isDragging = false;
+    let dragMode = null; // 'draw' | 'move' | 'resize'
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let currentDraftShape = null;
+    let selectedShape = null;
+    let activeHandle = null; // which corner/edge is being resized
+
+    // Shapes are stored as logical rectangles over the base image
+    const shapes = [];
+    const undoStack = [];
+    const redoStack = [];
+
+    let currentZoom = 1;
+
+    const cloneShape = (shape) => ({
+        type: shape.type,
+        x: shape.x,
+        y: shape.y,
+        w: shape.w,
+        h: shape.h,
+    });
+
+    const pushUndoSnapshot = () => {
+        try {
+            undoStack.push(shapes.map(cloneShape));
+            // New action invalidates redo history
+            redoStack.length = 0;
+        } catch (e) {
+            console.warn('Unable to save state for undo', e);
+        }
+    };
+
+    // Seed undo stack with empty shapes list
+    pushUndoSnapshot();
+
+    const setActiveTool = (tool) => {
+        currentTool = tool;
+        highlightBtn.classList.toggle('active', tool === 'highlight');
+        redactBtn.classList.toggle('active', tool === 'redact');
+    };
+
+    const applyZoom = (zoom) => {
+        currentZoom = Math.max(0.5, Math.min(3, zoom));
+        canvas.style.transform = `scale(${currentZoom})`;
+        canvas.style.transformOrigin = 'top left';
+        if (zoomValueEl) {
+            zoomValueEl.textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+    };
+
+    const drawShape = (shape, opts = {}) => {
+        const { isDraft = false, isSelected = false } = opts;
+        const x = shape.x;
+        const y = shape.y;
+        const w = shape.w;
+        const h = shape.h;
+
+        if (shape.type === 'highlight') {
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.35)';
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        } else if (shape.type === 'redact') {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x, y, w, h);
+        }
+
+        // Selection outline and resize handles
+        if (isSelected && !isDraft) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(138, 180, 248, 0.9)';
+            ctx.setLineDash([4, 2]);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+            ctx.setLineDash([]);
+
+            const handleSize = 6;
+            const half = handleSize / 2;
+            const points = [
+                [x, y],                 // tl
+                [x + w / 2, y],         // t
+                [x + w, y],             // tr
+                [x + w, y + h / 2],     // r
+                [x + w, y + h],         // br
+                [x + w / 2, y + h],     // b
+                [x, y + h],             // bl
+                [x, y + h / 2],         // l
+            ];
+            ctx.fillStyle = 'rgba(138, 180, 248, 1)';
+            points.forEach(([px, py]) => {
+                ctx.fillRect(px - half, py - half, handleSize, handleSize);
+            });
+            ctx.restore();
+        }
+    };
+
+    const renderAll = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imageCanvas, 0, 0);
+
+        shapes.forEach((shape) => {
+            const isSel = selectedShape && shape === selectedShape;
+            drawShape(shape, { isSelected: isSel });
+        });
+
+        if (currentDraftShape) {
+            drawShape(currentDraftShape, { isDraft: true });
+        }
+    };
+
+    const getHandleAtPoint = (shape, x, y) => {
+        const handleSize = 8;
+        const half = handleSize / 2;
+        const { x: sx, y: sy, w, h } = shape;
+        const points = [
+            { key: 'tl', x: sx, y: sy },
+            { key: 't', x: sx + w / 2, y: sy },
+            { key: 'tr', x: sx + w, y: sy },
+            { key: 'r', x: sx + w, y: sy + h / 2 },
+            { key: 'br', x: sx + w, y: sy + h },
+            { key: 'b', x: sx + w / 2, y: sy + h },
+            { key: 'bl', x: sx, y: sy + h },
+            { key: 'l', x: sx, y: sy + h / 2 },
+        ];
+        for (const p of points) {
+            if (Math.abs(x - p.x) <= half && Math.abs(y - p.y) <= half) {
+                return p.key;
+            }
+        }
+        return null;
+    };
+
+    const normalizeRect = (shape) => {
+        let { x, y, w, h } = shape;
+        if (w < 0) {
+            x = x + w;
+            w = -w;
+        }
+        if (h < 0) {
+            y = y + h;
+            h = -h;
+        }
+        return { ...shape, x, y, w, h };
+    };
+
+    const hitTestShape = (x, y) => {
+        // Iterate from topmost shape
+        for (let i = shapes.length - 1; i >= 0; i--) {
+            const s = shapes[i];
+            if (
+                x >= s.x &&
+                x <= s.x + s.w &&
+                y >= s.y &&
+                y <= s.y + s.h
+            ) {
+                return s;
+            }
+        }
+        return null;
+    };
+
+    // Assign handlers (overwrite any previous ones)
+    highlightBtn.onclick = () => setActiveTool('highlight');
+    redactBtn.onclick = () => setActiveTool('redact');
+
+    if (zoomInBtn) {
+        zoomInBtn.onclick = () => applyZoom(currentZoom + 0.25);
+    }
+    if (zoomOutBtn) {
+        zoomOutBtn.onclick = () => applyZoom(currentZoom - 0.25);
+    }
+
+    undoBtn.onclick = () => {
+        if (undoStack.length > 1) {
+            const current = undoStack.pop();
+            // Save current state to redo stack
+            try {
+                redoStack.push(current);
+            } catch (e) {
+                console.warn('Unable to save state for redo', e);
+            }
+            const last = undoStack[undoStack.length - 1];
+            shapes.length = 0;
+            last.forEach((s) => shapes.push(cloneShape(s)));
+            selectedShape = null;
+            renderAll();
+        }
+    };
+
+    if (redoBtn) {
+        redoBtn.onclick = () => {
+            if (redoStack.length > 0) {
+                const state = redoStack.pop();
+                if (state) {
+                    try {
+                        undoStack.push(state);
+                    } catch (e) {
+                        console.warn('Unable to save state for undo during redo', e);
+                    }
+                    shapes.length = 0;
+                    state.forEach((s) => shapes.push(cloneShape(s)));
+                    selectedShape = null;
+                    renderAll();
+                }
+            }
+        };
+    }
+
+    // Keyboard handler for deleting selected annotation with Delete / Backspace
+    const onKeyDown = (event) => {
+        if (!selectedShape) return;
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+            event.preventDefault();
+            const idx = shapes.indexOf(selectedShape);
+            if (idx !== -1) {
+                shapes.splice(idx, 1);
+                selectedShape = null;
+                pushUndoSnapshot();
+                renderAll();
+            }
+        }
+    };
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+        // Clean up handlers so they don't leak references
+        canvas.onmousedown = null;
+        canvas.onmousemove = null;
+        canvas.onmouseup = null;
+        canvas.onmouseleave = null;
+        highlightBtn.onclick = null;
+        redactBtn.onclick = null;
+        undoBtn.onclick = null;
+        if (redoBtn) redoBtn.onclick = null;
+        downloadBtn.onclick = null;
+        closeBtn.onclick = null;
+        if (zoomInBtn) zoomInBtn.onclick = null;
+        if (zoomOutBtn) zoomOutBtn.onclick = null;
+        document.removeEventListener('keydown', onKeyDown);
+    };
+
+    closeBtn.onclick = closeModal;
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    };
+
+    downloadBtn.onclick = () => {
+        // Ensure we render the latest shapes into the canvas before export
+        renderAll();
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                alert('Failed to generate screenshot image.');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `rep-request-response-${timestamp}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
+        closeModal();
+    };
+
+    const getCanvasCoords = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY
+        };
+    };
+
+    const onMouseDown = (event) => {
+        const { x, y } = getCanvasCoords(event);
+        dragStartX = x;
+        dragStartY = y;
+        lastX = x;
+        lastY = y;
+        isDragging = true;
+        activeHandle = null;
+        currentDraftShape = null;
+
+        const hitShape = hitTestShape(x, y);
+        if (hitShape) {
+            selectedShape = hitShape;
+            // Check if near a resize handle
+            const handle = getHandleAtPoint(hitShape, x, y);
+            if (handle) {
+                dragMode = 'resize';
+                activeHandle = handle;
+            } else {
+                dragMode = 'move';
+            }
+        } else {
+            // Start drawing a new shape
+            dragMode = 'draw';
+            const shape = {
+                type: currentTool,
+                x,
+                y,
+                w: 0,
+                h: 0,
+            };
+            currentDraftShape = shape;
+            selectedShape = null;
+        }
+
+        renderAll();
+    };
+
+    const onMouseMove = (event) => {
+        if (!isDragging) return;
+        const { x, y } = getCanvasCoords(event);
+        const dx = x - lastX;
+        const dy = y - lastY;
+        lastX = x;
+        lastY = y;
+
+        if (dragMode === 'draw' && currentDraftShape) {
+            currentDraftShape.w = x - dragStartX;
+            currentDraftShape.h = y - dragStartY;
+        } else if (dragMode === 'move' && selectedShape) {
+            selectedShape.x += dx;
+            selectedShape.y += dy;
+        } else if (dragMode === 'resize' && selectedShape && activeHandle) {
+            const s = selectedShape;
+            const right = s.x + s.w;
+            const bottom = s.y + s.h;
+            let newX = s.x;
+            let newY = s.y;
+            let newRight = right;
+            let newBottom = bottom;
+
+            if (activeHandle.includes('l')) {
+                newX = x;
+            }
+            if (activeHandle.includes('r')) {
+                newRight = x;
+            }
+            if (activeHandle.includes('t')) {
+                newY = y;
+            }
+            if (activeHandle.includes('b')) {
+                newBottom = y;
+            }
+
+            s.x = Math.min(newX, newRight);
+            s.y = Math.min(newY, newBottom);
+            s.w = Math.abs(newRight - newX);
+            s.h = Math.abs(newBottom - newY);
+        }
+
+        renderAll();
+    };
+
+    const onMouseUp = () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        if (dragMode === 'draw' && currentDraftShape) {
+            const normalized = normalizeRect(currentDraftShape);
+            // Ignore tiny shapes
+            if (normalized.w > 2 && normalized.h > 2) {
+                shapes.push(normalized);
+                selectedShape = shapes[shapes.length - 1];
+                pushUndoSnapshot();
+            }
+            currentDraftShape = null;
+        } else if ((dragMode === 'move' || dragMode === 'resize') && selectedShape) {
+            pushUndoSnapshot();
+        }
+
+        dragMode = null;
+        activeHandle = null;
+        renderAll();
+    };
+
+    canvas.onmousedown = onMouseDown;
+    canvas.onmousemove = onMouseMove;
+    canvas.onmouseup = onMouseUp;
+    canvas.onmouseleave = onMouseUp;
+
+    document.addEventListener('keydown', onKeyDown);
+
+    setActiveTool('highlight');
+    applyZoom(1);
+    renderAll();
+    modal.style.display = 'block';
 }
 
 function getFilteredRequests() {

@@ -1,0 +1,59 @@
+rules:
+  - name: SonarQube API Key
+    id: kingfisher.sonarqube.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        (?:sq[pua])
+        _[a-z0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - sonar.login=sqp_4b78f8494075e310d62dfdcaeb14be2c78fca2fc
+      - sonar.login=squ_4b78f8494075e310d62dfdcaeb14be2c78fca2fc
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Basic {{ TOKEN | append: ':' | b64enc }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: '{{ SONARHOST }}/api/user_tokens/search'
+    depends_on_rule:
+      - rule_id: kingfisher.sonarqube.2
+        variable: SONARHOST
+
+  - name: SonarQube Host
+    id: kingfisher.sonarqube.2
+    pattern: |
+      (?xi)
+      sonar.{0,8}host
+      (?:.|[\n\r]){0,64}?
+      (
+        https?://.*?:\d{2,6}
+      )
+    min_entropy: 3.5
+    visible: false
+    examples:
+      - sonar.host=https://sonar.internal.company.com:9000
+
+  - name: SonarQube Token
+    id: kingfisher.sonarqube.3
+    pattern: '(?i)sonar.{0,5}login.{0,5}\s*\b([a-f0-9]{40})\b'
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'sonar.host.url=https://sonarcloud.io -Dsonar.login=5524bf449ca45fcace54698371466398321f3a82'
+      - "sonar.login', '826de5590c75919a8317fdface58206eebe7ebbc"
+      - '$sonarLogin = "4924be8f51f3e738c97db2c4ace51db7e938f28b"'
+    references:
+      - https://docs.sonarqube.org/latest/user-guide/user-token/

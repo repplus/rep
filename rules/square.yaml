@@ -1,0 +1,99 @@
+rules:
+  - name: Square Access Token
+    id: kingfisher.square.1
+    pattern: |
+      (?xi)
+      \b
+      square
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        EAAA[a-z0-9\-\+=]{60}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - square EAAA7h9fL9zQJR8P0eAioAf9239345rDA2349bQ8edUA9FgA5JojdsF3A9f6nKLm
+      - square EAAAvlYh9H7dZwC9ash2hrHjtlL5D2srERGK5OM6F2nvle23he3NzA60PAeFXNHj
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://connect.squareup.com/v2/locations
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch     
+              words: ['"locations":']
+
+  - name: Square Access Token
+    id: kingfisher.square.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        sq0atp-[a-z0-9_-]{22}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - sq0atp-wQVXa6wRBlEEsd5OQtD7zg
+      - sq0atp-ZrEYj3nWPlEPo1PzHeI7xA
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://connect.squareup.com/v2/locations
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"locations":']
+
+  - name: Square OAuth Secret
+    id: kingfisher.square.3
+    pattern: |
+      (?xi)
+      \b
+      (
+        sq0csp-[a-z0-9_-]{43}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - sq0csp-pyRoa8ZyBlEisE5NQtN7sS-PqR6sK3W9JoF_Ov3Es2M
+      - sq0csp-P9QoCwVRh4tnAS8NbPGoGy-9psN3-8BGz3uNq5D_EFM
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://connect.squareup.com/v2/locations
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"locations":']

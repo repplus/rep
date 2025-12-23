@@ -1,0 +1,24 @@
+rules:
+  - name: Curl Basic Authentication Credentials
+    id: kingfisher.curl.1
+    pattern: '(?i)\bcurl\s.*(?:-u|--user)\s+[''"]?(?P<TOKEN>[^:''"\s]+:[^''"\s]+)[''"]?'
+    confidence: low
+    min_entropy: 3.0
+    references:
+      - https://curl.se/docs/manpage.html#-u
+    examples:
+      - 'curl --cacert ca.crt -u elastic:P@ssw0rd$1 https://localhost:9200'
+      - 'curl -u developer:yqDVtkqPECriaLRi'
+      - 'curl --user roger23@gmail.com:pQ9wTxu4Fg https://www.dropbox.com'
+
+  - name: Curl Header Authentication
+    id: kingfisher.curl.2
+    pattern: '(?i)\bcurl\s.*(?:-H|--header)\s+[''"]Authorization:\s*(?:Bearer|Basic|Token)\s+(?P<TOKEN>[a-zA-Z0-9+/=_-]{20,})[''"]'
+    confidence: low
+    min_entropy: 3.5
+    references:
+      - https://curl.se/docs/manpage.html#-H
+    examples:
+      - 'curl -H ''Authorization: Basic YnJvd3Nlcjo='''
+      - 'curl -H "Authorization: Bearer cfcabd11c7ed9a41b1a3e063c32d5114"'
+      - 'curl -H "Authorization: Token 22cb987851bc5659229114c62e60c79abd0d2c08"'

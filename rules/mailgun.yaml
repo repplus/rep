@@ -1,0 +1,67 @@
+rules:
+  - name: MailGun Token
+    id: kingfisher.mailgun.1
+    pattern: |
+      (?xi)
+      \b
+      mailgun
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                     
+      (                      
+        (?:[0-9A-Z-]{24}){3}
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - mailgun_api_key=abcdef123456abcdef123456abcdef123456abcdef123456abcdef123456abcdef123456
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Basic {{ TOKEN | b64enc }}
+            Accept: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.mailgun.net/v3/address/validate?address=test@example.com
+  - name: MailGun Primary Key
+    id: kingfisher.mailgun.2
+    pattern: |
+      (?xi)
+      (?:mailgun|mg)
+      (?:.|[\n\r]){0,64}?
+      \b
+      (                      
+        key-(?:[0-9a-f]{8}){4}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - key-mailgun_token= key-ad13dfc23adf55fa404a91e76d96f472
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Basic {{ "api:" | append: TOKEN | b64enc }}'
+            Accept: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.mailgun.net/v3/address/validate?address=test@example.com

@@ -1,0 +1,77 @@
+rules:
+  - name: Contentful Delivery API Token
+    id: kingfisher.contentful.1
+    pattern: |
+      (?xi)
+      \b
+      contentful
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9_-]{43,45}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_special_chars: 1
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://cdn.contentful.com/spaces"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"sys":'
+                - '"type":"Array"'
+                - '"items":'
+              match_all_words: true
+    references:
+      - https://www.contentful.com/developers/docs/references/content-delivery-api/
+    examples:
+      - "contentful_delivery_token = wJz-g_tqZ-8n_abcdefghijklmnopqrstuvwxyz12345"
+
+  - name: Contentful Personal Access Token
+    id: kingfisher.contentful.2
+    pattern: |
+      (?xi)
+      (
+        CFPAT-[A-Z0-9_-]{43}
+      )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.contentful.com/users/me"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"firstName":'
+                - '"lastName":'
+              match_all_words: true
+    references:
+      - https://www.contentful.com/developers/docs/references/content-management-api/#/reference/users/user
+    examples:
+      - "CFPAT-Cq3AarsJCDvdG9PYAJ3Y00crCG5nEPAAfVZ2LAldCsQ"
+      - "CFPAT-WFWEK_dWYIW0-uamOjhUBAJJ9NqQisr1x_ylb4z1vcQ"
+      - "CFPAT-lkITY2pqeiE0_p9TxUZrGAhfHJIiwYtbtr769y4_AYY"

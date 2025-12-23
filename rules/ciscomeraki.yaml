@@ -1,0 +1,37 @@
+rules:
+  - name: Cisco Meraki API Key
+    id: kingfisher.ciscomeraki.1
+    pattern: |
+      (?xi)
+      meraki
+      (?:.|[\n\r]){0,32}?
+      (
+        [0-9a-f]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - MERAKI_API_KEY=1234567890abcdef1234567890abcdef12345678
+      - |-
+          // Meraki configuration
+          const MERAKI_KEY = "abcdefabcdefabcdefabcdefabcdefabcdefabcd";
+    references:
+      - https://developer.cisco.com/meraki/api-v1/overview/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.meraki.com/api/v1/organizations
+          headers:
+            X-Cisco-Meraki-API-Key: '{{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+            - type: JsonValid

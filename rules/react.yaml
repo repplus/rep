@@ -1,0 +1,46 @@
+rules:
+  - name: React App Username
+    id: kingfisher.reactapp.1
+    pattern: |
+      (?xi)
+      \b
+      REACT_APP (?: _[A-Z0-9]+)* _USER (?: NAME)?          (?# variable name )
+      \s* = \s*
+      ['"]?
+      ( [^\s'"$]{3,} )                                     (?# value )
+      (?: [\s'"$] | $ )
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - '# REACT_APP_GUEST_USERNAME=guest'
+      - '# REACT_APP_USER=postgres'
+      - 'REACT_APP_AUTH_USER=postgres'
+      - 'REACT_APP_AUTH_USERNAME=bowie'
+      - '    REACT_APP_AUTH_USERNAME=bowie    # some comment'
+      - 'REACT_APP_MAILER_USERNAME=smtp_username # Enter your SMTP email username'
+    references:
+      - https://create-react-app.dev/docs/adding-custom-environment-variables/
+      - https://stackoverflow.com/questions/48699820/how-do-i-hide-an-api-key-in-create-react-app
+
+  - name: React App Password
+    id: kingfisher.reactapp.2
+    pattern: |
+      (?xi)
+      \b
+      REACT_APP (?: _[A-Z0-9]+)* _PASS (?: WORD)?          (?# variable name )
+      \s* = \s*
+      ['"]?
+      ( [^\s'"$]{6,} )                                     (?# value )
+      (?: [\s'"$] | $ )
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - '# REACT_APP_GUEST_PASSWORD=mycoin!1'
+      - '# REACT_APP_PASS=whiteduke'
+      - 'REACT_APP_AUTH_PASS=whiteduke'
+      - 'REACT_APP_AUTH_PASSWORD=whiteduke'
+      - '    REACT_APP_AUTH_PASSWORD=whiteduke    # some comment'
+      - 'REACT_APP_MAILER_PASSWORD=smtp_password # Enter your SMTP email password'
+    references:
+      - https://create-react-app.dev/docs/adding-custom-environment-variables/
+      - https://stackoverflow.com/questions/48699820/how-do-i-hide-an-api-key-in-create-react-app

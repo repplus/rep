@@ -1,0 +1,36 @@
+rules:
+  - name: SHODAN API Key
+    id: kingfisher.shodan.1
+    pattern: |
+      (?xi)
+      \b
+      shodan
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.shodan.io/api-info?key={{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"scan_credits"'
+    references:
+      - https://developer.shodan.io/api
+    examples:
+      - "shodan_api_key = dqlblS2CmTOc5zYn4nZkJljYsXRnNuiq"

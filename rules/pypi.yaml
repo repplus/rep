@@ -1,0 +1,65 @@
+rules:
+  - name: PyPI Upload Token
+    id: kingfisher.pypi.1
+    pattern: |
+      (?xi)
+      (
+        pypi-AgEIcHlwaS5vcmc[A-Z0-9_-]{50,}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - '# password = pypi-AgEIcHlwaS5vcmcABCD1234efgh5678ijklmnopqrst9098UVWXYZabcd1234EFGHIJKL'
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://upload.pypi.org/legacy/
+          response_is_html: true
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - "isn't allowed to upload to project"
+          headers:
+            Authorization: 'Basic {{ "__token__:" | append: TOKEN | b64enc }}'
+          multipart:
+            parts:
+              - name: name
+                type: text
+                content: "my-package"
+              - name: version
+                type: text
+                content: "0.0.1"
+              - name: filetype
+                type: text
+                content: "sdist"
+              - name: metadata_version
+                type: text
+                content: "2.1"
+              - name: summary
+                type: text
+                content: "A simple example package"
+              - name: home_page
+                type: text
+                content: "https://github.com/yourusername/my_package"
+              - name: sha256_digest
+                type: text
+                content: "0447379dd46c4ca8b8992bda56d07b358d015efb9300e6e16f224f4536e71d64"
+              - name: md5_digest
+                type: text
+                content: "9b4036ab91a71124ab9f1d32a518e2bb"
+              - name: :action
+                type: text
+                content: "file_upload"
+              - name: protocol_version
+                type: text
+                content: "1"
+              - name: content
+                type: file
+                content: "path/to/my_package-0.0.1.tar.gz"
+                content_type: "application/octet-stream"

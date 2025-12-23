@@ -1,0 +1,31 @@
+rules:
+  - name: Dependency-Track API Key
+    id: kingfisher.dtrack.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        odt_[A-Z0-9]{32,255}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'odt_KTJlDq2AGGGlqG4riKdT7p980AW8RlU5'
+      - 'odt_ABCDDq2AGxGlrF4ribBT7p98AOM9TlU8'
+      - 'odt_FHxhQGh77JAHHIYpZ818UQ0aYjXIdMIxxgeR'
+    # validation:
+    #   type: Http
+    #   content:
+    #     request:
+    #       headers:
+    #         Authorization: "Bearer {{ TOKEN }}"
+    #       method: GET
+    #       response_matcher:
+    #         - report_response: true
+    #         - status:
+    #             - 200
+    #           type: StatusMatch
+    #       url: https://dependencytrack.example.com/api/v1/token/verify

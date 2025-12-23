@@ -1,0 +1,57 @@
+rules:
+  - name: ClickHouse Cloud Secret Key
+    id: kingfisher.clickhouse.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        4b1d[a-z0-9]{38}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    examples:
+      - "4b1dwEZ8aNo1U9ODBqffSci1INBrltLHM2d1bHF4dq"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.clickhouse.cloud/v1/organizations"
+          headers:
+            Authorization: "Basic {{ CLICKHOUSE_ID | append: ':' | append: TOKEN | b64enc }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"id":'
+                - '"name":'
+              match_all_words: true
+    depends_on_rule:
+      - rule_id: "kingfisher.clickhouse.2"
+        variable: CLICKHOUSE_ID
+    references:
+      - https://clickhouse.com/docs/en/cloud/security/service-accounts
+  - name: ClickHouse Cloud Key ID
+    id: kingfisher.clickhouse.2
+    pattern: |
+      (?xi)
+      \b
+      clickhouse
+      (?:.|[\n\r]){0,16}?
+      (?:ID|USER)
+      (?:.|[\n\r]){0,16}?
+      (
+        [a-z0-9]{20}
+      )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    visible: false
+    min_entropy: 3.0
+    examples:
+      - "clickhouse_id = 4ywspD2Tb0gJh4QbLnDI"

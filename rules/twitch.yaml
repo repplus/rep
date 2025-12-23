@@ -1,0 +1,37 @@
+rules:
+  - name: Twitch API Token
+    id: kingfisher.twitch.1
+    pattern: |
+      (?xi)
+      twitch
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-z0-9]{30}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - TWITCH_TOKEN=abcdefghijklmnopqrstuvwx123456
+      - "twitch_api_token: '0123456789abcdefghijklmnopqrst'"
+    references:
+      - https://dev.twitch.tv/docs/authentication/validate-tokens/
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://id.twitch.tv/oauth2/validate
+          headers:
+            Authorization: 'OAuth {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid

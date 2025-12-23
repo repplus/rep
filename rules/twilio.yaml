@@ -1,0 +1,63 @@
+rules:
+  - name: Twilio API ID
+    id: kingfisher.twilio.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        (?:SK|AC)[A-F0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    visible: false
+    min_entropy: 3.5
+    examples:
+      - |
+        const twilioAccountSid = 'AC712594f590c0d8ace55c04858f7398f9' // Your Account SID from www.twilio.com/console
+        const twilioApiKeySID = 'SK9b4cc552783500ace5414a1ed3e9fd1a'
+        const twilioApiKeySecret = 'l6LUelKF2BUtMLace5oShZSmRppadYqI'
+      - |
+        // https://www.twilio.com/console/video/dev-tools/api-keys
+        'API'              => env('TWILIO_API','SK6e84981d07ace5c9df33e1ab043a2fb2'),
+        'API_KEY'          => env('TWILIO_API_KEY', 'wbTs1SUt6Aace5eKeNCxuYvJa6PhaRd0')
+  - name: Twilio API Key
+    id: kingfisher.twilio.2
+    pattern: |
+      (?xi)                
+      \b                  
+      twilio
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                  
+      (
+        [a-z0-9]{32}
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.0
+    examples:
+      - Twilio_key=Cd2Bd1dE1201aE2DFFEcfeBafCc3c31D
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Accept: '*/*'
+            Authorization: "Basic {{ TWILIOID | append: ':' | append: TOKEN | b64enc }}"
+            Content-Type: application/x-www-form-urlencoded
+          method: GET
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"first_page_uri":'
+                - '"accounts":'
+          url: https://api.twilio.com/2010-04-01/Accounts.json
+    depends_on_rule:
+      - rule_id: "kingfisher.twilio.1"
+        variable: TWILIOID

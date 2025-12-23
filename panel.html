@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Repeater Panel</title>
     <link rel="stylesheet" href="css/panel.css">
+    <link rel="stylesheet" href="css/json-viewer.css">
 </head>
 
 <body>
@@ -41,6 +42,11 @@
                                 d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z" />
                         </svg>
                     </button>
+                    <button id="toggle-sidebar-btn" class="icon-btn" title="Hide sidebar" aria-label="Hide sidebar">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M4 4h4v16H4V4zm5 0h11v2H9V4zm0 6h11v2H9v-2zm0 6h11v2H9v-2z" />
+                        </svg>
+                    </button>
                     <div class="divider-vertical"
                         style="width: 1px; height: 20px; background: var(--border-color); margin: 0 4px;"></div>
                     <button id="settings-btn" class="icon-btn">
@@ -70,13 +76,57 @@
                     <input type="file" id="import-file" accept=".json" style="display: none;">
                 </div>
                 <div class="filters">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="GET">GET</button>
-                    <button class="filter-btn" data-filter="POST">POST</button>
-                    <button class="filter-btn" data-filter="PUT">PUT</button>
-                    <button class="filter-btn" data-filter="DELETE">DELETE</button>
-                    <button class="filter-btn" data-filter="XHR"
-                        title="Show only XHR/Fetch requests (exclude images, fonts, text files)">XHR</button>
+                    <div class="method-filter" id="method-filter">
+                        <button id="method-filter-btn" class="filter-btn method-filter-btn" title="Filter by method">
+                            <span id="method-filter-label">All</span>
+                            <span class="method-caret">▾</span>
+                        </button>
+                        <div id="method-filter-menu" class="method-filter-menu">
+                            <div class="method-filter-actions">
+                                <button class="method-filter-action-btn" id="method-select-all">Select all</button>
+                                <button class="method-filter-action-btn" id="method-clear-all">Clear all</button>
+                            </div>
+                            <div class="method-filter-divider"></div>
+                            <div class="method-filter-item" data-filter="GET">
+                                <input type="checkbox" class="method-checkbox" data-filter="GET">
+                                <span>GET</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="POST">
+                                <input type="checkbox" class="method-checkbox" data-filter="POST">
+                                <span>POST</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="PUT">
+                                <input type="checkbox" class="method-checkbox" data-filter="PUT">
+                                <span>PUT</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="DELETE">
+                                <input type="checkbox" class="method-checkbox" data-filter="DELETE">
+                                <span>DELETE</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="PATCH">
+                                <input type="checkbox" class="method-checkbox" data-filter="PATCH">
+                                <span>PATCH</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="HEAD">
+                                <input type="checkbox" class="method-checkbox" data-filter="HEAD">
+                                <span>HEAD</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="OPTIONS">
+                                <input type="checkbox" class="method-checkbox" data-filter="OPTIONS">
+                                <span>OPTIONS</span>
+                            </div>
+                            <div class="method-filter-item" data-filter="TRACE">
+                                <input type="checkbox" class="method-checkbox" data-filter="TRACE">
+                                <span>TRACE</span>
+                            </div>
+                            <div class="method-filter-divider"></div>
+                            <div class="method-filter-item" data-filter="XHR"
+                                title="Show only XHR/Fetch requests (exclude images, fonts, text files)">
+                                <input type="checkbox" class="method-checkbox" data-filter="XHR">
+                                <span>XHR/Fetch</span>
+                            </div>
+                        </div>
+                    </div>
                     <button id="color-filter-btn" class="filter-btn" title="Filter by Color">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                             <path
@@ -84,6 +134,21 @@
                         </svg>
                     </button>
                     <button class="filter-btn" data-filter="starred" title="Show Starred">★</button>
+                    <div class="divider-vertical"
+                        style="width: 1px; height: 20px; background: var(--border-color); margin: 0 4px;"></div>
+                    <button id="block-toggle-btn" class="icon-btn block-toggle-btn" title="Block incoming requests" aria-label="Block incoming requests">
+                        <svg class="block-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>
+                    </button>
+                    <div class="forward-combo" id="forward-combo">
+                        <button id="forward-btn" class="icon-btn forward-combo-btn" title="Forward blocked requests">
+                            <span class="forward-label">Forward (0)</span>
+                            <span class="forward-caret" data-caret>▾</span>
+                        </button>
+                        <div id="forward-menu" class="forward-menu">
+                            <div class="forward-menu-item active" data-mode="next">Forward next</div>
+                            <div class="forward-menu-item" data-mode="all">Forward all</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -105,6 +170,11 @@
                     <div class="pane-header">
                         <h3>Request</h3>
                         <div class="header-actions">
+                            <button id="show-sidebar-btn" class="icon-btn show-sidebar-btn" title="Show sidebar" aria-label="Show sidebar" style="display: none;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M3 4h4v16H3V4zm5 0h16v2H8V4zm0 6h16v2H8v-2zm0 6h16v2H8v-2z" />
+                                </svg>
+                            </button>
                             <div class="dropdown-menu-container">
                                 <button id="ai-menu-btn" class="icon-btn" title="AI Actions">
                                     <svg viewBox="0 0 24 24" width="16" height="16">
@@ -219,6 +289,12 @@
                                 <input type="checkbox" id="show-diff">
                                 <span>Diff View</span>
                             </label>
+                            <button id="toggle-objects-btn" class="icon-btn" title="Collapse/Expand All Objects">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                    <path
+                                        d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z" />
+                                </svg>
+                            </button>
                             <button id="copy-res-btn" class="icon-btn" title="Copy Response">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path
@@ -256,6 +332,7 @@
                         <button class="view-tab" data-view="raw" data-pane="response">Raw</button>
                         <button class="view-tab" data-view="hex" data-pane="response">Hex</button>
                         <button class="view-tab" data-view="json" data-pane="response">Json</button>
+                        <button class="view-tab" data-view="preview" data-pane="response">Preview</button>
                     </div>
                     <div class="pane-body">
                         <div class="editor-container">
@@ -269,7 +346,22 @@
                                 <pre id="res-hex-display" class="hex-display"></pre>
                             </div>
                             <div id="res-view-json" class="view-content" style="display: none;">
+                                <div class="json-warning-bar" style="display: none;">
+                                    <span class="json-warning-icon">⚠️</span>
+                                    <span class="json-warning-text">Not a valid JSON - showing raw body</span>
+                                </div>
                                 <pre id="res-json-display" class="json-display"></pre>
+                            </div>
+                            <div id="res-view-preview" class="view-content" style="display: none;">
+                                <div class="preview-controls" style="padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                                        <input type="checkbox" id="preview-allow-scripts" style="margin: 0;">
+                                        <span>Allow Scripts</span>
+                                    </label>
+                                    <span style="font-size: 11px; color: var(--text-secondary);">⚠️ Enabling scripts may pose security risks</span>
+                                    <span style="font-size: 10px; color: var(--text-secondary); margin-left: auto;">Note: Console warnings are expected for sandboxed content</span>
+                                </div>
+                                <iframe id="response-preview-iframe" sandbox="allow-forms allow-same-origin" style="width: 100%; height: 100%; border: none; background: white;"></iframe>
                             </div>
                         </div>
                         <div class="search-bar-container">
@@ -366,6 +458,25 @@
                 <div class="context-submenu-group">
                     <div class="context-submenu-header">JWT</div>
                     <div class="context-menu-item" data-action="jwt-decode">JWT Decode</div>
+                </div>
+            </div>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item has-submenu" id="ctx-copy-as-group">
+            <span>Copy as</span>
+            <span class="submenu-arrow">▶</span>
+            <div class="context-submenu">
+                <div class="context-menu-item" data-action="copy-as-curl" data-requires-full-selection="true">
+                    cURL
+                </div>
+                <div class="context-menu-item" data-action="copy-as-bash" data-requires-full-selection="true">
+                    PowerShell
+                </div>
+                <div class="context-menu-item" data-action="copy-as-python" data-requires-full-selection="true">
+                    Python (requests)
+                </div>
+                <div class="context-menu-item" data-action="copy-as-fetch" data-requires-full-selection="true">
+                    JavaScript fetch
                 </div>
             </div>
         </div>
@@ -538,11 +649,12 @@
 
     <!-- Extractor Modal -->
     <div id="extractor-modal" class="modal">
-        <div class="modal-content" style="width: 900px; max-width: 95vw;">
+        <div class="modal-content" style="width: 1200px; max-width: 95vw;">
             <div class="modal-header">
                 <div class="extractor-tabs">
                     <button class="extractor-tab active" data-tab="secrets">Secrets</button>
                     <button class="extractor-tab" data-tab="endpoints">Endpoints</button>
+                    <button class="extractor-tab" data-tab="parameters">Parameters</button>
                     <button class="extractor-tab" data-tab="response-search">Response Search</button>
                 </div>
                 <div id="domain-filter-container" style="margin: 0 10px; display: none;">
@@ -562,6 +674,24 @@
                         <div class="progress-bar" id="extractor-progress-bar"></div>
                         <span id="extractor-progress-text">Scanning...</span>
                     </div>
+                    <div id="scan-steps" class="scan-steps" style="margin-top: 12px; display: none;">
+                        <div class="scan-step" data-step="secrets">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Scanning for secrets</span>
+                        </div>
+                        <div class="scan-step" data-step="endpoints">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Extracting endpoints</span>
+                        </div>
+                        <div class="scan-step" data-step="parameters">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Extracting parameters</span>
+                        </div>
+                        <div class="scan-step" data-step="processing">
+                            <span class="step-icon">○</span>
+                            <span class="step-text">Processing results</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Secrets Tab Content -->
@@ -572,6 +702,10 @@
                     <div id="secrets-pagination" class="pagination-container" style="display: none;"></div>
                     <p class="disclaimer-text"
                         style="margin-top: 15px; font-size: 11px; color: #888; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <strong>Note:</strong> Secret scanning only analyzes JavaScript files from the <strong>current inspected tab</strong>.
+                    </p>
+                    <p class="disclaimer-text"
+                        style="margin-top: 10px; font-size: 11px; color: #888;">
                         <strong>Disclaimer:</strong> Automated scanning may produce false positives. Please manually
                         verify all findings.
                     </p>
@@ -595,6 +729,23 @@
                             Copy All Endpoints
                         </button>
                     </div>
+                </div>
+
+                <!-- Parameters Tab Content -->
+                <div id="tab-parameters" class="tab-content">
+                    <div id="parameters-results">
+                        <div class="empty-state">No parameters found yet. Click "Scan" to start.</div>
+                    </div>
+                    <div id="parameters-pagination" class="pagination-container" style="display: none;"></div>
+                    <p class="disclaimer-text"
+                        style="margin-top: 15px; font-size: 11px; color: #888; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <strong>Note:</strong> Parameter extraction only analyzes JavaScript files from the <strong>current inspected tab</strong>.
+                        Parameters are extracted from request bodies, query strings, headers, and path variables.
+                    </p>
+                    <p class="disclaimer-text"
+                        style="margin-top: 10px; font-size: 11px; color: #888;">
+                        <strong>Disclaimer:</strong> Automated extraction may produce false positives. High-risk parameters (role, admin, debug, etc.) are always shown regardless of confidence.
+                    </p>
                 </div>
 
                 <!-- Response Search Tab Content -->
@@ -633,9 +784,59 @@
         </div>
     </div>
 
+    <!-- Screenshot Editor Modal -->
+    <div id="screenshot-editor-modal" class="modal">
+        <div class="modal-content screenshot-editor-modal">
+            <div class="modal-header">
+                <h3>Screenshot Editor</h3>
+                <button class="close-modal" id="screenshot-editor-close">&times;</button>
+            </div>
+            <div class="modal-body screenshot-editor-body">
+                <div class="screenshot-tools">
+                    <button id="screenshot-tool-highlight" class="secondary-btn active" title="Highlight">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M3 17.25L17.81 2.44l3.75 3.75L6.75 21H3v-3.75z" fill="#FFD54F" />
+                            <path d="M5 19h2.25L17 9.25 14.75 7 5 16.75V19z" fill="#FBC02D" />
+                        </svg>
+                    </button>
+                    <button id="screenshot-tool-redact" class="secondary-btn" title="Redact">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <rect x="3" y="7" width="18" height="10" fill="currentColor" />
+                        </svg>
+                    </button>
+                    <button id="screenshot-tool-undo" class="secondary-btn" title="Undo">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6 0 1.01-.25 1.96-.7 2.8l1.46 1.46A7.932 7.932 0 0020 13c0-4.42-3.58-8-8-8z"
+                                fill="currentColor" />
+                        </svg>
+                    </button>
+                    <button id="screenshot-tool-redo" class="secondary-btn" title="Redo">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6 0 1.01.25 1.96.7 2.8L5.24 17.26A7.932 7.932 0 014 13c0-4.42 3.58-8 8-8z"
+                                fill="currentColor" />
+                        </svg>
+                    </button>
+                    <div class="screenshot-zoom-controls">
+                        <span class="zoom-label">Zoom:</span>
+                        <button id="screenshot-zoom-out" class="secondary-btn">-</button>
+                        <span id="screenshot-zoom-value" class="zoom-value">100%</span>
+                        <button id="screenshot-zoom-in" class="secondary-btn">+</button>
+                    </div>
+                </div>
+                <div class="screenshot-canvas-wrapper">
+                    <canvas id="screenshot-editor-canvas"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="screenshot-download-btn" class="primary-btn">Download PNG</button>
+            </div>
+        </div>
+    </div>
+
     <script src="lib/html2canvas.min.js"></script>
     <script src="lib/marked.min.js"></script>
     <script src="lib/diff.min.js"></script>
+    <script src="lib/js-yaml.min.js"></script>
     <script type="module" src="js/main.js"></script>
 </body>
 

@@ -25,18 +25,11 @@ function extractBody(rawHttp) {
 
 export function generateJsonView(text) {
     const body = extractBody(text);
-    try {
-        // Try to parse as JSON
-        JSON.parse(body);
 
-        // If valid JSON, format it with JSONFormatter
-        const formattedBody = formatter.format(body, 5);
-        if (document.body.classList.contains('dark-theme'))
-            formattedBody.classList.add('dark-theme');
-        
-        return formattedBody;
-    } catch (e) {
-        // Not JSON, return as-is
-        return escapeHtml(text);
-    }
+    // Format body with JSONFormatter, if not json it'll return raw body
+    const formattedBody = formatter.format(body, 5);
+    if (document.body.classList.contains('dark-theme'))
+        formattedBody.classList.add('dark-theme');
+
+    return formattedBody;
 }

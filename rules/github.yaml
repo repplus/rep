@@ -1,0 +1,277 @@
+rules:
+  - name: GitHub Personal Access Token - fine-grained permissions
+    id: kingfisher.github.1
+    pattern: |
+      (?xi)                 
+      (
+        github_pat_
+        [A-Z0-9_+]{82,84}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 2
+    min_entropy: 3.5
+    examples:
+      - "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"
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub Personal Access Token
+    id: kingfisher.github.2
+    pattern: |
+      (?xi)
+      (
+        ghp_(?P<body>[A-Z0-9]{30})(?P<checksum>[A-Z0-9]{6})
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 2
+      checksum:
+        actual:
+          template: "{{ MATCH | suffix: 6 }}"
+          requires_capture: checksum
+        expected: "{{ BODY | crc32 | base62: 6 }}"
+        skip_if_missing: true
+    min_entropy: 3.5
+    examples:
+      - "GITHUB_KEY=ghp_XIxB7KMNdAr3zqWtQqhE94qglHqOzn1D1stg"
+      - "let g:gh_token='ghp_4U3LSowpDx8XvYE7A8GH56oxU5aWnY2mzIbV'"
+      - |
+        ## git developer settings
+        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
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub OAuth Access Token
+    id: kingfisher.github.3
+    pattern: |
+      (?xi)
+      (
+        gho_(?P<body>[A-Z0-9]{30})(?P<checksum>[A-Z0-9]{6})
+      )
+    pattern_requirements:
+      min_digits: 2
+      checksum:
+        actual:
+          template: "{{ MATCH | suffix: 6 }}"
+          requires_capture: checksum
+        expected: "{{ BODY | crc32 | base62: 6 }}"
+        skip_if_missing: true
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - '    "url": "git+https://FelipeMestre:gho_psT9pqNFsehnc4se0ZzzR0HBxapxZD35hNHi@github.com/gontarz/PW_2021_Website-FelipeMestre.git"'
+      - '    oauth_token: gho_fq75OMU7UVbS9pTZmoCCzJT6TM5d1w099FgG'
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub App User-to-Server Token
+    id: kingfisher.github.4
+    pattern: |
+      (?xi)
+      (
+        ghu_(?P<body>[A-Z0-9]{30})(?P<checksum>[A-Z0-9]{6})
+      )
+    examples:
+      - '            "token": "ghu_16C7e42F292c69C2E7C10c838347Ae178B4a",'
+      - |
+        Example usage:
+        git clone http://ghu_RguXIkihJjwHAP6eXEYxaPNvywurTr5IOAbg@github.com/username/repo.git
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub App Server-to-Server Token
+    id: kingfisher.github.5
+    pattern: |
+      (?xi)
+      (
+        ghs_(?P<body>[A-Z0-9]{30})(?P<checksum>[A-Z0-9]{6})
+      )
+    examples:
+      - '            "token": "ghs_16C7e42F292c69C2E7C10c838347Ae178B4a",'
+      - |
+        Example usage:
+        git clone http://ghs_RguXIkihJjwHAP6eXEYxaPNvywurTr5IOAbg@github.com/username/repo.git
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub Refresh Token
+    id: kingfisher.github.6
+    pattern: |
+      (?xi)
+      (
+        ghr_(?P<body>[A-Z0-9]{30})(?P<checksum>[A-Z0-9]{6})
+      )
+    examples:
+      - '    "refresh_token": "ghr_1B4a2e77838347a7E420ce178F2E7c6912E169246c3CE1ccbF66C46812d16D5B1A9Dc86A1498",'
+    references:
+      - https://docs.github.com/en/rest/users?apiVersion=2022-11-28
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://api.github.com/graphql
+          headers:
+            Authorization: token {{ TOKEN }}
+            Accept: application/vnd.github+json
+            Content-Type: application/json
+          body: |
+            {
+              "query": "{ viewer { login } }"
+            }
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - '"login"'
+  - name: GitHub Client ID
+    id: kingfisher.github.7
+    pattern: |
+      (?xi)
+      (?:github)
+      .?
+      (?: api | app | application | client | consumer | customer )?
+      .?
+      (?: id | identifier | key )
+      .{0,2} \s{0,20} .{0,2} \s{0,20} .{0,2}
+      \b ([a-z0-9]{20}) \b
+    visible: false
+    examples:
+      - |
+        GITHUB_CLIENT_ID=ac58d6da7d7a84c039b7
+        GITHUB_SECRET=37d02377a3e9d849e18704c3ec883f9c5787d857
+  - name: GitHub Secret Key
+    id: kingfisher.github.8
+    pattern: |
+      (?xi)
+      github
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+          [a-z0-9]{40}
+      )
+      \b
+    depends_on_rule:
+      - rule_id: "kingfisher.github.5"
+        variable: GITHUB_CLIENT_ID
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: "https://github.com/login/oauth/access_token"
+          headers:
+            Accept: "application/json"
+            Content-Type: "application/json"
+          body: '{"client_id":"{{GITHUB_CLIENT_ID}}","client_secret":"{{TOKEN}}","code":"invalid_code"}'
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"error":"bad_verification_code"'
+    examples:
+      - |
+        GITHUB_CLIENT_ID=ac58d6da7d7a84c039b7
+        GITHUB_SECRET=37d02377a3e9d849e18704c3ec883f9c5787d857

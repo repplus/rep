@@ -1,0 +1,44 @@
+rules:
+  - name: Anypoint API Key
+    id: kingfisher.anypoint.1
+    pattern: |
+      (?xi)               
+      anypoint
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b                       
+      (                        
+        [0-9a-z]{8}
+        -
+        [0-9a-z]{4}
+        -
+        [0-9a-z]{4}
+        -
+        [0-9a-z]{4}
+        -
+        [0-9a-z]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - anypoint_key = "33333333-cccc-dddd-eeee-444444444444"
+    references:
+      - https://www.postman.com/salesforce-developers/salesforce-developers/documentation/oj0opxa/mulesoft-anypoint-platform-apis
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://anypoint.mulesoft.com/accounts/api/me

@@ -1,0 +1,102 @@
+rules:
+  - name: Atlassian API token
+    id: kingfisher.atlassian.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      atlassian
+      (?:.|[\n\r]){0,32}?
+      \b                         
+      (
+        [a-z0-9]{24}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - Atlassian_key = "DjayBenyJrtpvydFCzAphcqc"
+      - "ATLASSIAN_API_TOKEN:'abcdef1234567890abcdef12'"
+    references:
+      - https://developer.atlassian.com/cloud/admin/organization/rest/api-group-orgs/#api-v1-orgs-get
+    validation:
+      type: Http
+      content:
+        request:
+          url: https://api.atlassian.com/me
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: "application/json"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: WordMatch
+              words:
+                - "Unauthorized"
+              negative: true
+  # - name: Atlassian Organization ID
+  #   id: kingfisher.atlassian.2
+  #   pattern: |
+  #     (?xi)
+  #     admin\.atlassian\.com
+  #     /o/
+  #     (
+  #       [0-9a-f]{8}
+  #       -
+  #       [0-9a-f]{4}
+  #       -
+  #       [0-9a-f]{4}
+  #       -
+  #       [0-9a-f]{4}
+  #       -
+  #       [0-9a-f]{12}
+  #     )
+  #   min_entropy: 2.0
+  #   confidence: medium
+  #   visible: false
+  #   examples:
+  #     - https://admin.atlassian.com/o/12345678-9abc-def0-1234-56789abcdef0/api-keys
+  - name: Atlassian Admin API Key
+    id: kingfisher.atlassian.3
+    pattern: |
+      (?x)
+      (?:atlassian|api\.atlassian\.com)
+      (?:.|[\n\r]){0,128}?
+      \b
+      (
+        AT
+        [A-Za-z0-9_\-=]{60,260}
+      )
+      \b
+    min_entropy: 3.8
+    confidence: medium
+    examples:
+      - |
+        # Example usage calling the Atlassian admin APIs
+        curl --request GET \
+          'https://api.atlassian.com/admin/v1/orgs' \
+          --header 'Authorization: Bearer ATEXAMPLE1234567890abcdefghijklmnopqrstuvwxyz_-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789foobarAA11BB22'
+    references:
+      - https://developer.atlassian.com/cloud/admin/organization/rest/
+      - https://developer.atlassian.com/cloud/admin/api-access/rest/
+      - https://support.atlassian.com/organization-administration/docs/manage-an-organization-with-the-admin-apis/
+      - https://community.atlassian.com/learning/lesson/what-are-admin-apis
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.atlassian.com/admin/v1/orgs
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: JsonValid

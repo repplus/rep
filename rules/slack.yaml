@@ -1,0 +1,120 @@
+rules:
+  - name: Slack App Token
+    id: kingfisher.slack.1
+    pattern: |
+      (?xi)
+      (?:
+        .{0,24}[=:]
+        \s{0,8}
+      )?
+      (
+        xapp-
+        [0-9]{1,3}-
+        [0-9a-z]{10,15}-
+        [0-9a-z]{10,15}-
+        [0-9a-z]{10,66}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - xapp-1-A05V64V7F2B-5062360157732-9f01726eebe77df2c096a65e95acdd02107b2c1e92ca341cff27ca271b7251b4
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Content-Type: application/json; charset=utf-8
+          method: POST
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"ok":true'
+          url: https://slack.com/api/auth.test
+
+  - name: Slack Token
+    id: kingfisher.slack.2
+    pattern: |
+      (?xi)
+      \b                         
+      (
+        xox[pbarose]
+        [-0-9]{0,3}-
+        [0-9a-z]{6,15}-
+        [0-9a-z]{6,15}-
+        [-0-9a-z]{6,66}
+      )\b
+      |
+      (
+        xoxe\.xox[bparose]-
+        \d-
+        [A-Z0-9]{155,170}
+      )\b
+      |
+      (
+        xoxe-\d-
+        [A-Z0-9]{140,150}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    examples:
+      - xoxb-853BAAEE-1B2eDb6A4c75-01bB6Da1CE3E98f6fED5AeC07Dc3E94C
+      - xoxe.xoxp-1-Mi0yLTIxNTE3NzA2MDYtNTEyOTQ2NTEzMDYxMy03MTkwNzY4NDc5ODc3LTcxOTM1NTk2ODMxODctZGE3NWQ0NmZiNTk3MTU1ZDA4ZTQwZTYxOWY2Njc3YTgzNzNhNDkxMzg4ZWZiYzljMjRkOWZhODgxYzA0NGI2ZQ
+      - xoxe-1-My0xLTIxNTE3NzA2MDYtNzE5MDc2ODQ3OTg3Ny03MjE2NDY0MzYxNDcyLTliOWNhYzZhODU3ODc3NjAxZGM4ODg2ZWRkMmE2MTc3ZDA3ODY4ZmUzZDg2NzEyZTU0Zjk2ZTYzMWMxZTVmOTA
+    references:
+      - https://api.slack.com/methods/auth.test
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Content-Type: application/json; charset=utf-8
+          method: POST
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words:
+                - '"ok":true'
+          url: https://slack.com/api/auth.test
+
+  - name: Slack Webhook
+    id: kingfisher.slack.4
+    pattern: |
+      (?xi)
+      \b
+      (
+        https://hooks\.slack\.com/services/
+        T[a-z0-9_-]{8,12}/
+        B[a-z0-9_-]{8,12}/
+        [a-z0-9_-]{20,30}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    examples:
+      - https://hooks.slack.com/services/TY40v9sZ9/BxIqhIXIi/NGUyXK6nK7HMAqd0ASzXluoV
+      - https://hooks.slack.com/services/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
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Content-Type: application/json
+          method: POST
+          response_matcher:
+            - report_response: true
+              type: WordMatch
+              words:
+                - invalid_payload
+            - type: WordMatch
+              words:
+                - "invalid_token"
+              negative: true
+          url: "{{ TOKEN }}"
+

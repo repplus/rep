@@ -1,0 +1,38 @@
+rules:
+  - name: Cerebras AI API Key
+    id: kingfisher.cerebras.1
+    pattern: |
+      (?xi)
+      (
+        csk-[a-z0-9]{48}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_lowercase: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.cerebras.ai/v1/models"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"object"'
+                - '"data"'
+              match_all_words: true
+    references:
+      - https://docs.cerebras.net/
+    examples:
+      - "csk-6nptf4w5cx36fw58t3hkx48jvm52wm693pex5tjm29kn55yt"
+      - "csk-e2knhj8h3h4erp6crfx6rh52tvecj4xnwmtjf3mtrvtt54et"
+      - "csk-rhw8npjrp6kpv9phm55n5nv5rkkm4492jepx3yh65dc9cwe9"
+      - "csk-w6p3nxk3dc5249mrpmv642fffert28rwdkepffrpn8rtfr9h"

@@ -1,0 +1,37 @@
+rules:
+  - name: DeepSeek API Key
+    id:   kingfisher.deepseek.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        sk-[a-f0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.7
+    confidence: medium
+    examples:
+      - sk-ba588036180d4d1d9cebbf6456f1e220
+      - sk-2481fb3538a1453fac54f6cbdca981cb
+      - sk-8be2c2f8cf2e424aad1643c1d3944377
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.deepseek.com/models
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"data"']             
+              match_all_words: true
+    references:
+      - https://api-docs.deepseek.com/   
+      - https://api-docs.deepseek.com/api/list-models  

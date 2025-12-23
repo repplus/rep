@@ -1,0 +1,71 @@
+rules:
+  - name: LinkedIn Client ID
+    id: kingfisher.linkedin.1
+    pattern: |
+      (?xi)
+      linkedin
+      .?
+      (?: api | app | application | client | consumer | customer )?
+      .?
+      (?: id | identifier | key )
+      .{0,2} \s{0,20} .{0,2} \s{0,20} .{0,2}
+      \b ([a-z0-9]{12,14}) \b
+    pattern_requirements:
+      min_digits: 2
+    references:
+      - https://docs.microsoft.com/en-us/linkedin/shared/api-guide/best-practices/secure-applications
+    min_entropy: 2.5
+    confidence: medium
+    examples:
+      - 'Email IDÂ Last 5 Digits of your SSNÂ LinkedIn IDÂ Availability'
+      - |
+        LINKEDIN_KEY = "77yg7tx91p4lag"
+        LINKEDIN_SECRET = "zt7GeN6IH911xvRj"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.linkedin.com/v2/me
+
+  - name: LinkedIn Secret Key
+    id: kingfisher.linkedin.2
+    pattern: |
+      (?xi)
+      linkedin
+      .?
+      (?: api | app | application | client | consumer | customer | secret | key )
+      .?
+      (?: key | oauth | sec | secret )?
+      .{0,2} \s{0,20} .{0,2} \s{0,20} .{0,2}
+      \b ([a-z0-9]{16}) \b
+    pattern_requirements:
+      min_digits: 2
+    references:
+      - https://docs.microsoft.com/en-us/linkedin/shared/api-guide/best-practices/secure-applications
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - |
+        LINKEDIN_KEY = "77yg7tx91p4lag"
+        LINKEDIN_SECRET = "zt7GeN6IH911xvRj"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.linkedin.com/v2/me

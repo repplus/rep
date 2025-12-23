@@ -1,0 +1,61 @@
+rules:
+  - name: Sendbird Application ID
+    id: kingfisher.sendbird.1
+    pattern: |
+      (?xi)
+      sendbird
+      (?:.|[\\n\r]){0,32}?
+      (?:APPLICATION|APP_ID|APP|CLIENT|ID)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    visible: false
+    min_entropy: 3.0
+    examples:
+      - "sendbird_app_id: 12345678-1234-1234-1234-1234567890ab"
+
+  - name: Sendbird API Token
+    id: kingfisher.sendbird.2
+    pattern: |
+      (?xi)
+      sendbird
+      (?:.|[\\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-f0-9]{40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 4.0
+    examples:
+      - "sendbird_api_token: 1234567890abcdef1234567890abcdef12345678"
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api-{{SENDBIRD_APP_ID}}.sendbird.com/v3/users"
+          headers:
+            "Api-Token": "{{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"users":'
+    depends_on_rule:
+      - rule_id: "kingfisher.sendbird.1"
+        variable: SENDBIRD_APP_ID
+    references:
+      - https://sendbird.com/docs/chat/platform-api/v3/prepare-to-use-api#2-authentication

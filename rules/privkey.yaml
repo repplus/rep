@@ -1,0 +1,108 @@
+rules:
+  - name: Contains encrypted RSA private key
+    id: kingfisher.privkey.1
+    pattern: |
+      (?xi)                   
+      (?msi)
+      (
+        -----BEGIN\s
+        (?:RSA)\s
+        PRIVATE\sKEY
+        (\sBLOCK)?
+        -----
+      )
+      [\r\n]
+      Proc-Type:.*?ENCRYPTED
+      [\r\n]
+      DEK-INFO.*?
+      [\r\n][\r\n]
+      [a-z0-9/+=\r\n\\n]{32,}?
+      -----END\s
+      (?:RSA)\s
+      PRIVATE\sKEY
+      (\sBLOCK)?
+      -----
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.5
+    confidence: high
+    examples:
+      - |-
+        -----BEGIN RSA PRIVATE KEY-----
+        Proc-Type: 4,ENCRYPTED
+        DEK-Info: AES-256-CBC,1F77CE6d2Bb6B18537633Ec3aD093b9C
+
+        kyx3
+        wbfxsauty36i7t
+        i9z9jp/m7wiptdmxpx2zh
+        wehs0oz1abuede+tq4ama6kjrywq0
+        xw2mbgz1fmxw+8ub4rf2wkm/qlvnopukbitesk2+
+        b55+04h565guxlu+8u4+mynsoqgahx0p5jg4h1vo0lpw/ru1qe60p4nz7635xeel868y72bsysa5/90qkhnt1bkxcqyqkmw3
+        949mmahkh/cd9+f+x9wprv4mtq02ks1pzpb6zz6t
+        +ril
+        frnc129xvp11ndqbyjqlg3jf9ovlb1qula84ftj8m
+        -----END RSA PRIVATE KEY-----
+
+  - name: Contains Private Key
+    id: kingfisher.privkey.2
+    pattern: |
+      (?xims)
+      (                       
+        -----BEGIN\s
+        (?:
+          RSA |
+          PGP |
+          DSA |
+          OPENSSH |
+          ENCRYPTED |
+          EC
+        )?
+        \s{0,1}
+        PRIVATE\sKEY
+        (\sBLOCK)?
+        -----
+        [a-z0-9 /+=\r\n\\n]{32,}?
+        -----END\s
+        (?:
+          RSA |
+          PGP |
+          DSA |
+          OPENSSH |
+          ENCRYPTED |
+          EC
+        )?
+        \s{0,1}
+        PRIVATE\sKEY
+        (\sBLOCK)?
+        -----
+      )
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 4.5
+    confidence: high
+    examples:
+      - |
+        -----BEGIN PRIVATE KEY-----
+        34fNwLAJYISQf4pT4wgMrzN1p3kdMYLTEYXw12k+SlKL=QLKQj=SP=hOpCG5Cdj/Hkk0ARyOgoZbJycYA
+        8D9r9K2m6N1ZaUT96UrFqjlL9nAqmZ+13D82H1CYLKy0NOAY3XBLzLk46HZd8na2
+        -----END PRIVATE KEY-----
+      - |
+        -----BEGIN RSA PRIVATE KEY-----
+        34fNwLAJYISQf4pT4wgMrzN1p3kdMYLTEYXw12k+SlKL=QLKQj=SP=hOpCG5Cdj/Hkk0ARyOgoZbJycYA
+        8D9r9K2m6N1ZaUT96UrFqjlL9nAqmZ+13D82H1CYLKy0NOAY3XBLzLk46HZd8na2
+        -----END RSA PRIVATE KEY-----
+      - |-
+        -----BEGIN ENCRYPTED PRIVATE KEY-----
+        FPaBqPQWx0nxTJbSrPavSaNtmAyAH6etkjZs0/In
+        -----END ENCRYPTED PRIVATE KEY-----
+      - |-
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7a7kN8LymUu8Z
+        8D9r9K2m6N1ZaUT96UrFqjlL9nAqmZ+13D82H1CYLKy0NOAY3XBLzLk46HZd8na2
+        -----END PRIVATE KEY-----
+      - |-
+        -----BEGIN ENCRYPTED PRIVATE KEY BLOCK-----
+        V75NeIrlsI80Gf0aTS2RZQvEcUQ3n6XwFnOvB/O5rRv3HGqvptc3P3n0bxfEg5KA
+        -----END ENCRYPTED PRIVATE KEY BLOCK-----

@@ -1,0 +1,66 @@
+rules:
+  - name: Figma Personal Access Token
+    id: kingfisher.figma.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        figd_[A-Z0-9_-]{38,42}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - figma pat = figd_rh1234567890123456789012345678901234abcd
+      - "figma access token: figd_1234567890123456789012345678901234abcdef"
+    references:
+      - https://www.figma.com/developers/api#users
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            X-Figma-Token: '{{ TOKEN }}'
+          method: GET
+          url: https://api.figma.com/v1/me
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words: 
+                - "Invalid token"
+              negative: true
+
+  - name: Figma Personal Access Header Token
+    id: kingfisher.figma.2
+    pattern: |
+      (?xi)
+      figma
+      (?:.|[\n\r]){0,32}?
+      (
+        [0-9A-F]{4}
+        -[0-9A-F]{8}
+        (?:-[0-9A-F]{4}){3}
+        -[0-9A-F]{12}
+      )
+    pattern_requirements:
+      min_digits: 2
+    examples:
+      - "--header='X-Figma-Token: 1394-0ca7a5be-8e22-40ee-8c40-778d41ab2313'"
+    references:
+      - https://www.figma.com/developers/api#users
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            X-Figma-Token: '{{ TOKEN }}'
+          method: GET
+          url: https://api.figma.com/v1/me
+          response_matcher:
+            - report_response: true
+            - type: WordMatch
+              words: 
+                - "Invalid token"
+              negative: true

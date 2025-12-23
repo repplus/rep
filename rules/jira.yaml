@@ -1,0 +1,59 @@
+rules:
+  - name: Jira Domain
+    id: kingfisher.jira.1
+    pattern: |
+      (?xi)    
+      \b               
+      (
+        [a-z][a-z0-9-]{5,24}\.atlassian\.net
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    visible: false
+    confidence: medium
+    examples:
+      - examplefoo-jira.atlassian.net
+      - jira.sprintUri= https://example.atlassian.net/rest
+
+  - name: Jira Token
+    id: kingfisher.jira.2
+    pattern: |
+      (?xi)                   
+      \b                     
+      jira
+      (?:.|[\n\r]){0,8}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|PASSWORD|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      \b                     
+      (                      
+        [a-z0-9-]{24}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 'Here is my Jira token: VDOheDe1sSCeGkuTARhkFDE2'
+      - public static final String JIRA_PASSWORD = "VDOheDe1sSCeGkuTARhkFDE2";
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Accept: application/json
+            Authorization: Basic {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://{{ DOMAIN }}/rest/api/3/dashboard
+    depends_on_rule:
+      - rule_id: kingfisher.jira.1
+        variable: DOMAIN

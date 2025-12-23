@@ -1,0 +1,66 @@
+rules:
+  - name: Netlify API Key
+    id: kingfisher.netlify.1
+    pattern: |
+      (?xi)
+      netlify
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-f0-9]{60,64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    examples:
+      - netlify_token=3cdfad7b885a6daceff3fb820389115750b373763fb30b10ca0382648b55872d
+      - netlify_secret=7a9ef2c84d6b3e5f1c8a0b9d2e4f6a8c7b3d5e9f2a1c8b4d6e3f5a9c7b2d8e4
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          url: https://api.netlify.com/api/v1/user        
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+
+  - name: Netlify API Key
+    id: kingfisher.netlify.2
+    pattern: |
+      (?xi)
+      \b
+      netlify
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [A-Z0-9_-]{43,45}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - netlify_token=G5yT54abRasekrOpe7SaArsowiuHTeR45sfEhsH-K1L2
+      - netlify_key=H7xZ98cdWbsemqNpv8UaXtsnyjKgVeQ34rsDkpM-N5P6
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          url: https://api.netlify.com/api/v1/user      
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]

@@ -1,0 +1,48 @@
+rules:
+  - name: AI21 Studio API Key
+    id: kingfisher.ai21studio.1
+    pattern: | 
+      (?xi)                       
+      \b                         
+      ai21
+      (?:.|[\n\r]){0,32}?
+      \b  
+      (               
+        [0-9a-f]{8}  
+        -          
+        [0-9a-f]{4}  
+        -              
+        [0-9a-f]{4}
+        -               
+        [0-9a-f]{4}
+        -              
+        [0-9a-f]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.2
+    confidence: medium
+    examples:
+      - ai21 = 90cd6930-a9ae-4f15-8da0-dc1bbcd814b9
+      - 'ai21_key: befa7ec1-1129-4713-8e92-bb53d1a4f632'
+      - ai21_token = ec2e14e9-0309-459b-ba76-1e59e1f42b87
+    references:
+      - https://docs.ai21.com/reference/authentication
+      - https://docs.ai21.com/reference/manage-library-ref/list-library-files
+
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.ai21.com/studio/v1/library/files
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json 
+          response_matcher:
+            - report_response: true           
+            - type: StatusMatch
+              status: [200]

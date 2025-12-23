@@ -1,0 +1,33 @@
+rules:
+  - name: ReadMe API Key
+    id: kingfisher.readme.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        rdme_(?P<RDMVAL>[a-z0-9]{70})
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - rdme_abcdefghijklmnopqrstuvwxyzabcdef1234567890abcdef1234567890abcdef123456
+      - rdme_xn8s9he60fb31e9d290403d2707cce88fa820042d425fc6eb2baed4191dd88a5405987
+    references:
+      - https://docs.readme.com/main/reference/getproject-1
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.readme.com/v2/projects/me

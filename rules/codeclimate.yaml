@@ -1,0 +1,43 @@
+rules:
+  - name: CodeClimate Reporter ID
+    id: kingfisher.codeclimate.1
+    pattern: |
+      (?xi)
+      (?: CODECLIMATE| CC_TEST_REPORTER_ID)
+      (?:.|[\n\r]){0,64}?
+      \b
+      (
+        [a-f0-9]{64}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - ' - RAILS_ENV=test CODECLIMATE_REPO_TOKEN=d37a8b9e09642cb73cfcf4e1284815fc3d6a55a7714110187ac59856ae4ab5ad'
+      - |
+        - uses: paambaati/codeclimate-action@v2.2.4
+        env:
+          CC_TEST_REPORTER_ID: 945dfb58a832d233a3caeb84e3e6d3be212e8c7abcb48117fce63b9adcb43647
+      - CODECLIMATE_API_TOKEN=d37a8b9e09642cb73cfcf4e1284815fc3d6a55a7714110187ac59856ae4ab5ad
+      - CODECLIMATE_API_TOKEN="d37a8b9e09642cb73cfcf4e1284815fc3d6a55a7714110187ac59856ae4ab5ad"
+    references:
+      - https://developer.codeclimate.com/#overview
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: 'https://api.codeclimate.com/v1/orgs'
+          headers:
+            Accept: 'application/vnd.api+json'
+            Authorization: 'Token token={{ TOKEN }}'
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: WordMatch
+              words:
+                - '"id":'

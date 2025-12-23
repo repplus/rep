@@ -1,0 +1,33 @@
+rules:
+  - name: HubSpot Private App Token
+    id: kingfisher.hubspot.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        pat-[a-z0-9]{2,3}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.0
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.hubapi.com/crm/v3/owners/"
+          headers:
+            Authorization: "Bearer {{TOKEN}}"
+          response_matcher:
+            - report_response: true
+            - type: JsonValid
+            - type: WordMatch
+              words:
+                - '"INVALID_AUTHENTICATION"'
+              negative: true
+    references:
+      - https://developers.hubspot.com/docs/api/private-apps
+    examples:
+      - "pat-na2-3b124f92-f4cb-4d1d-8d1c-7fc3f3512dba"

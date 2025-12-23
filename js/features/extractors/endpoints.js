@@ -107,6 +107,19 @@ function calculateConfidence(endpoint, method, context) {
     return Math.min(100, Math.max(0, confidence));
 }
 
+// Normalize source file URL to remove query params and fragments for deduplication
+function normalizeSourceFile(sourceFile) {
+    if (!sourceFile) return sourceFile;
+    try {
+        const url = new URL(sourceFile);
+        // Remove query params and fragments, keep only pathname
+        return `${url.protocol}//${url.host}${url.pathname}`;
+    } catch (e) {
+        // If URL parsing fails, try to remove query params manually
+        return sourceFile.split('?')[0].split('#')[0];
+    }
+}
+
 // Clean and normalize endpoint
 function normalizeEndpoint(endpoint) {
     // Remove quotes and backticks
@@ -157,6 +170,21 @@ export function extractEndpoints(content, sourceFile) {
 
     if (!content) return results;
 
+    // Safety check: Only process JavaScript files
+    // This is a defensive check - the UI should already filter, but this ensures robustness
+    if (sourceFile) {
+        const url = sourceFile.toLowerCase();
+        // Check for common JavaScript file extensions
+        const isJS = url.endsWith('.js') || 
+                     url.endsWith('.mjs') ||
+                     url.includes('.js?') ||  // JS files with query params
+                     url.includes('.js&');     // JS files with query params
+        if (!isJS) {
+            // Not a JavaScript file, skip extraction
+            return results;
+        }
+    }
+
     // Extract base URL from source file
     let baseUrl = '';
     try {
@@ -180,8 +208,11 @@ export function extractEndpoints(content, sourceFile) {
 
             if (!isValidEndpoint(endpoint)) continue;
 
+            // Normalize source file for deduplication (remove query params, fragments)
+            const normalizedSourceFile = normalizeSourceFile(sourceFile);
+
             // Create unique key for deduplication
-            const uniqueKey = `${endpoint}|${sourceFile}`;
+            const uniqueKey = `${endpoint}|${normalizedSourceFile}`;
             if (seenEndpoints.has(uniqueKey)) continue;
             seenEndpoints.add(uniqueKey);
 

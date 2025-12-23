@@ -1,0 +1,69 @@
+rules:
+  - name: Lob API Key
+    id: kingfisher.lob.1
+    pattern: |
+      (?xi)
+      lob
+      (?:.|[\n\r]){0,24}?
+      \b
+      (
+        (?:live|test)_[a-f0-9]{35}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - export LOB_API_KEY=live_9f8e7d6c5b4a3210fedcba09876543210ab
+      - LOB_KEY="test_abcdefabcdefabcdefabcdefabcdefabcde"
+    references:
+      - https://docs.lob.com/#section/Authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.lob.com/v1/addresses?limit=1
+          headers:
+            Authorization: "Basic {{ TOKEN | append: ':' | b64enc }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200
+  - name: Lob Publishable API Key
+    id: kingfisher.lob.2
+    pattern: |
+      (?xi)
+      lob
+      (?:.|[\n\r]){0,24}?
+      \b
+      (
+        (?:test|live)_pub_[a-f0-9]{31}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - const LOB_PUB_KEY = "test_pub_abcdefabcdefabcdefabcdefabcdefa";
+      - LOB_PUBLISHABLE="live_pub_1234567890abcdef1234567890abcde"
+    references:
+      - https://docs.lob.com/#section/Authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.lob.com/v1/addresses?limit=1
+          headers:
+            Authorization: "Basic {{ TOKEN | append: ':' | b64enc }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

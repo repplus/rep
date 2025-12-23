@@ -1,0 +1,92 @@
+rules:
+  - name: Asana Client ID
+    id: kingfisher.asana.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      asana
+      (?:.|[\n\r]){0,32}?
+      \b                         
+      (
+        [0-9]{16}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - asana_key = "8195513847023883"
+      - "ASANA_API_TOKEN: 1234567890123456"
+    references:
+      - https://developers.asana.com/docs/authentication
+
+  - name: Asana Client Secret
+    id: kingfisher.asana.2
+    pattern: |
+      (?xi)                       
+      \b                         
+      asana
+      (?:.|[\n\r]){0,64}?
+      \b                         
+      (
+        [a-z0-9]{30,40}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - "asana :'20c2F0d03201af478ca1aBE9515A1A4FEfb'"
+      - ASANA_PAT = 1234567890abcdef1234567890abcdef12
+
+  - name: Asana OAuth / Personal Access Token
+    id: kingfisher.asana.3
+    pattern: |
+      (?xi)                       
+      \b                         
+      asana
+      (?:.|[\n\r]){0,64}?
+      \b                         
+      (                          
+        [01]{1,} 
+        \/
+        [0-9a-f]{16,32}
+        (?:                      
+          :
+          [a-z0-9]{32,64}
+        )?
+      )                          
+      \b
+    pattern_requirements:
+      min_digits: 4
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - asana_pat = 1/1248440223456784:d3d7e52e5c4a5d4c9bc424d2d882324d
+      - asana token = 0/d6f1e29e5b4b4d8c9bb419b2d882154d
+    categories:
+      - api
+      - key
+      - asana
+    references:
+      - https://developers.asana.com/docs/personal-access-token#example
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - match_all_words: true
+              type: WordMatch
+              words:
+                - 'data:'
+                - email
+                - name
+          url: https://app.asana.com/api/1.0/users/me

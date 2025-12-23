@@ -1,0 +1,59 @@
+rules:
+ - name: Azure Search Query Key
+   id: kingfisher.azuresearch.key.1 
+   pattern: |
+      (?xi)
+      \b
+      azure
+      (?:.|[\n\r]){0,32}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      (
+        [0-9A-Z]{52}
+      )
+      \b
+   pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 2
+   min_entropy: 3.3
+   confidence: medium
+   examples:
+     - azure_search_key = XK8TnSRDXsoxiFYiH6Ix2aBC6jvWozd9Ida1yNjWgFHSjeDlblDK
+   references:
+    - https://learn.microsoft.com/en-us/rest/api/searchservice/search-documents
+   validation:
+     type: Http
+     content:
+       request:
+         method: GET
+         url: '{{ AZUREURL }}/docs?search=%2a&$top=0&api-version=2024-07-01'
+         headers:
+           api-key: '{{ TOKEN }}'
+         response_matcher:
+           - report_response: true
+           - status:
+               - 200
+             type: StatusMatch
+   depends_on_rule:
+     - rule_id: kingfisher.azuresearch.url.1
+       variable: AZUREURL
+ - name: Azure Search URL
+   id: kingfisher.azuresearch.url.1
+   pattern: |
+     (?xi)
+     \b
+     azure
+     (?:.|[\n\r]){0,32}?
+     https:\/\/
+     (
+       [0-9a-z]{5,40}
+       \.search\.windows\.net
+       \/indexes\/
+       [0-9a-z]{5,40}
+     )
+     \b
+   min_entropy: 3.0
+   confidence: medium
+   examples:
+     - azure_search_url=https://myservice.search.windows.net/indexes/myindex

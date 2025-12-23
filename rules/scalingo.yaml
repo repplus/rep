@@ -1,0 +1,32 @@
+rules:
+  - name: Scalingo API Token
+    id: kingfisher.scalingo.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        tk-us-[\w-]{48}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - SCALINGO_TOKEN=tk-us-abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef
+      - '"scalingo": "tk-us-1234567890abcdef1234567890abcdef1234567890abcdef"'
+    references:
+      - https://developers.scalingo.com/apps/api/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.scalingo.com/v1/users/self
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

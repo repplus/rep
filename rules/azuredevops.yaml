@@ -1,0 +1,52 @@
+rules:
+  - name: Azure DevOps Organization
+    id: kingfisher.azure.devops.1
+    pattern: |
+      (?xi)
+      \b
+      dev\.azure\.com/
+      (
+        [a-z0-9][a-z0-9-]{0,61}[a-z0-9]
+      )
+    confidence: medium
+    min_entropy: 2.5
+    visible: false
+    examples:
+      - https://dev.azure.com/contoso
+      - dev.azure.com/somebody123
+
+  - name: Azure DevOps Personal Access Token
+    id: kingfisher.azure.devops.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        [a-z0-9]{76}AZDO[a-z0-9]{4,5}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3
+    confidence: medium
+    examples:
+      - azure devops pat = FBdFol081crwkIHWJH2yiqDDyrFjVSi7HWl22hN2hTYfsB8NlGDpJQQJ77BAACAAAAAAAAAAAAASAZDOBucTj
+    references:
+      - https://learn.microsoft.com/en-us/rest/api/azure/devops/profile/profiles/get?view=azure-devops-rest-7.1&tabs=HTTP
+      - https://learn.microsoft.com/en-us/azure/devops/release-notes/2024/general/sprint-241-update
+    depends_on_rule:
+      - rule_id: kingfisher.azure.devops.1
+        variable: AZURE_DEVOPS_ORG
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Basic {{ ":" | append: TOKEN | b64enc }}'
+            Accept: application/json
+          method: GET
+          url: "https://dev.azure.com/{{ AZURE_DEVOPS_ORG | split: '/' | last }}/_apis/projects?api-version=7.1-preview.1"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

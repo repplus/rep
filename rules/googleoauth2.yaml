@@ -1,0 +1,32 @@
+rules:
+  - name: Google OAuth2 Access Token
+    id: kingfisher.google.oauth2.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        ya29\.(?i:[a-z0-9_-]{30,})
+      )
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - "ya29.A0ARrdaM9Ra8K7R9AcxA1PpIMLVQ021H0TL0PRh2s_HH0_tn5gCSSf"
+      - "ya29.Cj0KCQjwgLr5BRC3ARIsAKEd0AR9_Fg5fjV5pVXZlFYobyfz7Bb9SyOv"
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          method: GET
+          url: https://www.googleapis.com/oauth2/v3/userinfo 
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+            - type: WordMatch
+              words:
+                - '"email":'

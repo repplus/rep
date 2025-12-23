@@ -1,0 +1,38 @@
+rules:
+  - name: Intercom API Token
+    id: kingfisher.intercom.1
+    pattern: |
+      (?xi)  
+      (?:intercom|ic)
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (                               
+        [0-9A-Z+/]{59}=                
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+
+    examples:
+      - "intercom_access_token: dG9rOvI0NmJlMTA5XzQwM2NfNDVlM184MjQzXzkwMDnmOTE1NGIyONoxOjA="
+      - ic_token = "g1ZsclJXTjNfc1pBSzJDemE0eFVDU0U5c25CeDN4Vm9hQ2Zac0hXemZHNPQ=="
+
+    references:
+      - https://developers.intercom.com/docs/build-an-integration/learn-more/rest-apis
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          headers:
+            Accept: application/json
+            Authorization: Bearer {{ TOKEN }}
+          url: https://api.intercom.io/me
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status:
+                - 200

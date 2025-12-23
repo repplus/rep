@@ -1,0 +1,36 @@
+rules:
+  - name: Diffbot API Key
+    id: kingfisher.diffbot.1
+    pattern: |
+      (?xi)                       
+      \b                         
+      diffbot
+      (?:.|[\n\r]){0,32}?
+      \b                         
+      (
+        [0-9a-z]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    examples:
+      - diffbot_key = a7424adbafc4624e61482d0f60e43016
+    references:
+      - https://docs.diffbot.com/reference/account
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: >-
+            https://api.diffbot.com/v4/account?token={{ TOKEN }}
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"name"'
+                - '"email"'
+                - '"planCredits"'

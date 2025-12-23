@@ -1,0 +1,44 @@
+rules:
+  - name: DroneCI Access Token
+    id:   kingfisher.drone.1
+    pattern: |
+      (?xi)
+      \b                                    
+      (?:drone|droneci|drone[_-])
+      (?:.|[\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (                                                  
+        ey[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}  
+        |
+        [a-f0-9]{32,64}                                   
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - export DRONE_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZGVtbyJ9.GEPa7kCDdw4nruBKgLkQF1EGMZVvJ1kM4sMp9p8a1x4
+      - drone_token = fe8c402a51e6629aa1f43a4234afee81
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://cloud.drone.io/api/user
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words: ['"email"']         
+              match_all_words: true
+    references:
+      - https://docs.drone.io/api/overview/           
+      - https://0-8-0.docs.drone.io/api-authentication/ 
+      - https://docs.drone.io/server/user/machine/    

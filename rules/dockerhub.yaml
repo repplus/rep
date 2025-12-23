@@ -1,0 +1,34 @@
+rules:
+  - name: Docker Hub Personal Access Token
+    id: kingfisher.dockerhub.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        dckr_pat_[A-Z0-9_-]{27}
+      )
+      (?: $ | [^A-Z0-9_-] )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - docker login -u gemesa -p dckr_pat_hc8VxYclixyTr2rDFsa2rqzkP3Y
+      - docker login -u gemesa -p dckr_pat_tkzBYxjNNC3R_Yg6jd_O-G8FbrJ
+      - docker login -u gemesa -p dckr_pat_1q8yKET1VDJTpfCwseUDzT8vFh-
+    references:
+      - https://docs.docker.com/reference/api/hub/latest/#tag/access-tokens/paths/~1v2~1access-tokens~1%7Buuid%7D/get
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+            Accept: application/json
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://hub.docker.com/v2/access-tokens?page_size=1

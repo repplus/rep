@@ -1,0 +1,32 @@
+rules:
+  - name: Tailscale API Key
+    id: kingfisher.tailscale.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        tskey-[a-z]{3,10}-[A-Z0-9_-]{20,36}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - tskey-secret-weRTWSfoeFKI-3480754342kDSFelW3
+      - tskey-api-weRTWSfoeFKI-3480754342kDSFelW3
+    references:
+      - https://tailscale.com/kb/1215/oauth-clients
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://api.tailscale.com/api/v2/tailnet/-/devices
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            Accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]

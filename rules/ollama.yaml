@@ -1,0 +1,49 @@
+rules:
+  - name: Ollama API Key
+    id: kingfisher.ollama.1
+    pattern: |
+      (?xi)
+      \b
+      ollama
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [a-f0-9]{32}\.[a-zA-Z0-9_-]{24}
+      )
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: POST
+          url: https://ollama.com/api/generate
+          headers:
+            Content-Type: application/json
+            # Turbo keys are sent as the raw value in Authorization (no "Bearer " prefix)
+            # per working client behavior.
+            Authorization: "{{ TOKEN }}"
+          body: |
+            {
+              "model": "gpt-oss:20b",
+              "prompt": "ping",
+              "stream": false
+            }
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"response":'
+                - '"done":true'
+    references:
+      - https://ollama.com/blog/turbo
+    examples:
+      - "ollama key = 8bcdd9b4e28e4e1b8bf14a2eb8701220.QH5p5TU2BDwzHu5_RCtvJXsj"
+      - "ollama key = e56714bd7c1146e4b4801244bc2bc67a.3GAswjZGZ5YY6Qdgt0xg56vM"
+      - "ollama key = 872658d00c284033a707abf1725d4b6c.-4JpTp0dQHmf0nb89xI-wgP-"
+      - "ollama key = 0c4e6bf1222c4ffc87025a7a9ffd5cac.z-fgt1JO9-LadzA2cL23qLH3"
+      - "ollama key = dae874a007d442cdb807910c4c57c6f5.B_aHUSdeAe42UR-X41StUFJq"

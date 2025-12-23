@@ -1,0 +1,87 @@
+rules:
+  - name: Databricks API token
+    id: kingfisher.databricks.1
+    pattern: |
+      (?xi)
+      \b
+      (             
+        dapi
+        [a-f0-9]{32}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+      min_uppercase: 1
+      min_lowercase: 1
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - "DATABRICKS_TOKEN: 'dapicd295a7be286969133e18a58e4afe7bd-3'"
+      - "dapif21ee53d2b3648c2a1ed38953312a203"
+    categories:
+      - api
+      - secret
+    references:
+      - https://docs.databricks.com/dev-tools/api/latest/authentication.html
+
+  - name: Databricks API Token
+    id: kingfisher.databricks.2
+    pattern: |
+      (?xi)
+      \b
+      (
+        dapi[0-9a-f]{32}
+      )
+      (-\d)?
+      \b
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - dapiabcd1234abcd1234abcd1234abcd1234
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: Bearer {{ TOKEN }}
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://{{ DOMAIN }}/api/2.0/clusters/list
+    depends_on_rule:
+      - rule_id: "kingfisher.databricks.2"
+        variable: DOMAIN
+
+  - name: Databricks Domain
+    id: kingfisher.databricks.3
+    pattern: |
+      (?xi)                
+      \b 
+      (                   
+        [a-z0-9-]+ 
+        (?: 
+          \.[a-z0-9\-]+ 
+        )*
+        \.                
+        (
+          cloud\.databricks\.com |
+          gcp\.databricks\.com   |
+          azurewebsites\.net
+        )
+      )
+      \b
+    min_entropy: 3.5
+    visible: false
+    confidence: medium
+    examples:
+      - company-name.cloud.databricks.com
+    categories:
+      - cloud
+      - infrastructure
+    references:
+      - https://docs.databricks.com/workspace/workspace-details.html
+      - https://docs.gcp.databricks.com/workspace/workspace-details.html
+      - https://docs.microsoft.com/en-us/azure/databricks/scenarios/what-is-azure-databricks

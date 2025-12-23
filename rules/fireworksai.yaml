@@ -1,0 +1,37 @@
+rules:
+  - name: Fireworks.ai API Key
+    id: kingfisher.fireworks.1
+    pattern: |
+      (?xi)
+      \b
+      (
+        fw_[A-Z0-9]{24}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    confidence: medium
+    min_entropy: 3.5
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: "https://api.fireworks.ai/inference/v1/models"
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              words:
+                - '"owned_by"'
+                - '"data"'
+              match_all_words: true
+    references:
+      - https://readme.fireworks.ai/reference/getting-started-with-the-api
+    examples:
+      - "fw_3ZL5ji26Tp7baYrW5S2pA5xi"
+      - "fw_3ZaW5fSpx5GTnHpRGb8CPu2V"
+      - "fw_3ZSU8ymvmZ38YPv8uwbZHAyW"

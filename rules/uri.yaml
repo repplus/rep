@@ -1,0 +1,42 @@
+rules:
+  - name: URI with Username and Secret
+    id: kingfisher.uri.1
+    pattern: |
+      (?xi)
+      (
+        (?:https?)://
+        [A-Za-z](?:[A-Za-z0-9+\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*
+        :
+        (?:[A-Za-z0-9\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})+
+        @
+        (?:[A-Za-z0-9\-._~%]+|\[[A-Fa-f0-9:.]+\]|\[v[A-Fa-f0-9][A-Za-z0-9\-._~%!$&'()*,;=:]+\])
+        (:?[0-9]+)?
+        (?:/[A-Za-z0-9\-._~%!$&'()*,;=:@%]*)*
+        /?
+        (?:\?[A-Za-z0-9\-._~%!$&'()*,;=:@/?%]*)?
+        (?:\#[A-Za-z0-9\-._~%!$&'()*,;=:@/?%]*)?
+      )
+    pattern_requirements:
+      ignore_if_contains:
+        - "****"
+        - "xxxx"
+        - "username:"
+        - "user:"
+        - ":password"
+        - ":pass"
+        - ">:<"
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - https://username:secret@example.com/path
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: '{{ TOKEN }}'
+          response_matcher:
+            - report_response: false
+              type: StatusMatch
+              status:
+                - 200

@@ -1,0 +1,34 @@
+rules:
+  - name: Eraser API Key
+    id: kingfisher.eraser.1
+    pattern: |
+      (?xi)
+      \b
+      eraser
+      (?:[^A-Za-z0-9]{0,16})?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:[^A-Za-z0-9]{0,16})?
+      \b
+      (
+        [A-Za-z0-9]{20}
+      )
+      \b
+    min_entropy: 3.5
+    confidence: medium
+    examples:
+      - eraser_token = Q7MD4J9L2X0B6R3T8W1P
+    references:
+      - https://eraser.io/docs/api/authentication
+    validation:
+      type: Http
+      content:
+        request:
+          method: GET
+          url: https://app.eraser.io/api/reports/usage?rangeDays=1
+          headers:
+            Authorization: "Bearer {{ TOKEN }}"
+            accept: application/json
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200, 403]

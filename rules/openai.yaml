@@ -1,0 +1,62 @@
+rules:
+  - name: OpenAI API Key
+    id: kingfisher.openai.1
+    pattern: |
+      (?xi)
+      (
+        sk-[A-Z0-9]{48}
+      )
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.3
+    confidence: medium
+    examples:
+      - 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
+      - curl https://api.openai.com/v1/images/generations  -H 'Content-Type application/json'  -H "Authorization Bearer sk-mxIt5s1tyfCJyIKHwrqOT4BlbkFJT3VVmv6VdSwB7XXIq1TO"
+    references:
+      - https://help.openai.com/en/articles/9132009-how-can-i-view-the-users-or-organizations-associated-with-an-api-key
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.openai.com/v1/me
+
+  - name: OpenAI API Key
+    id: kingfisher.openai.2
+    pattern: |
+      (?xi)
+      (
+        (sk-(?:proj|svcacct|None)-[A-Z0-9_-]{100,})
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 4.0
+    confidence: medium
+    examples:
+      - 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
+      - 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
+      - sk-None-JEBiV9H-bLEZoOhNvLWmCNR74dIbql-p3yWFmWpdYCjeR1PWM_PS40yTLowkF3VzXHYJ3VbFarT3BlbkFJYznRo8bADhczK0Ca7t-WRbdwRlC1DPc8P2EaJm03OIg01Uj0cQxRAPO-4Rjs_TNyKXnVePtkcA
+    references:
+      - https://help.openai.com/en/articles/9132009-how-can-i-view-the-users-or-organizations-associated-with-an-api-key
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: 'Bearer {{ TOKEN }}'
+          method: GET
+          response_matcher:
+            - report_response: true
+            - status:
+                - 200
+              type: StatusMatch
+          url: https://api.openai.com/v1/models

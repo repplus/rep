@@ -1,0 +1,54 @@
+rules:
+  - name: Travis CI Token
+    id: kingfisher.travisci.1
+    pattern: |
+      (?xi)
+      \b
+      travis
+      (?:.|[\\n\r]){0,16}?
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,16}?
+      \b
+      (
+        [A-Z-_0-9]{22}
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - "travis_token splendid21RANDOMCONTEN"
+    validation:
+        type: Http
+        content:
+          request:
+            method: GET
+            url: https://api.travis-ci.com/repos?limit=1
+            headers:
+              Authorization: token {{ TOKEN }}
+              Accept: application/vnd.travis-ci.3+json
+              Travis-API-Version: "3"
+            response_matcher:
+              - report_response: true
+              - type: StatusMatch
+                status: [200]
+  - name: Travis CI Encrypted Variable
+    id: kingfisher.travisci.2
+    pattern: |
+      (?xis)
+      (?:language|env|deploy|script):[\r\n]
+      (?:.|[\\n\r]){0,256}?
+      (
+        secure:\s*"?[A-Za-z0-9+/=\\]+"?\s*
+      )
+      \b
+    min_entropy: 3.0
+    confidence: medium
+    examples:
+      - | 
+        env:
+          global:
+            # This sets FOO=super-secret, but the plaintext never appears here.
+            - secure: "VJh0l9gOb+6AVNDk6cziZSs1AqVM8CqtZU6ot9ZQeJ+KfL1pxnGQ4qQF8Cz9\M1q85c3l1N1+qkQ0uV12QG6O6ylq6Qq1l3VjAJM3h2pY3jdmrA8kX2ZIxRjC/\8+Xj1wVtKQ0R+owM/6i5Y6cyx4hRb3VvSeYlC0lD1iTzQ2vgMyE="
+

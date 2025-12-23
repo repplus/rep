@@ -1,0 +1,37 @@
+rules:
+  - name: SonarCloud API Token
+    id: kingfisher.sonarcloud.1
+    pattern: |
+      (?xi)                    
+      \b
+      sonar
+      (?:.|[\n\r]){0,32}?       
+      (?:SECRET|PRIVATE|ACCESS|KEY|TOKEN)
+      (?:.|[\n\r]){0,32}?
+      \b
+      (
+        [0-9a-z]{40}            
+      )
+      \b
+    pattern_requirements:
+      min_digits: 2
+    min_entropy: 2.5
+    examples:
+      - sonar_api_token=abcdef0123456789abcdef0123456789abcdef23
+    validation:
+      type: Http
+      content:
+        request:
+          headers:
+            Authorization: "Basic {{ TOKEN | append: ':' | b64enc }}"
+            Accept: application/json
+          method: GET
+          url: https://sonarcloud.io/api/user_tokens/search
+          response_matcher:
+            - report_response: true
+            - type: StatusMatch
+              status: [200]
+            - type: WordMatch
+              match_all_words: true
+              words:
+                - '"tokens":'
