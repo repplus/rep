@@ -105,12 +105,56 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 - **Response Search**: regex support, match preview, pagination, domain filter.
 
 ### AI Assistance
-- Explain Request (Claude/Gemini) with streaming responses.
-- Suggest Attack Vectors: request + response analysis; auto-send if no response; payload suggestions; reflections/errors/multi-step chains; fallback to request-only with warning.
-- Context menu “Explain with AI” for selected text.
-- Attack Surface Analysis per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
-- Multi-provider support (Claude/Gemini).
-- Export AI outputs as Markdown or PDF to save RPD/TPM.
+
+#### Rep+ AI Assistance (Interactive LLM Chat)
+- **Interactive Chat Interface**: Real-time conversation with AI about your HTTP requests and responses
+  - Streaming responses with live markdown rendering
+  - Syntax highlighting for code blocks (supports multiple languages)
+  - Copy-to-clipboard for code blocks with visual feedback
+  - Token usage counter with color-coded warnings
+- **Per-Request Chat History**: Each request maintains its own conversation history
+  - Automatically saves chat when switching between requests
+  - Restores previous conversations when returning to a request
+  - Clear chat button resets only the current request's conversation
+- **Cross-Reference Previous Requests**: Reference investigations from other requests
+  - "Reference previous requests" UI with collapsible/expandable list
+  - Select which previous requests to include in context
+  - AI receives summaries of previous investigations for referenced requests
+  - Perfect for multi-step testing scenarios (e.g., login → authenticated request)
+- **Request Modification**: AI can modify requests directly in the editor
+  - "Apply modifications" button appears when AI suggests changes
+  - Smart detection: only shows when modifications are actually suggested
+  - Preserves request structure (headers, formatting, HTTP version)
+  - Animated application with visual feedback
+  - Supports header updates, body modifications, and new header additions
+- **Response History Tracking**: Tracks multiple responses from resends
+  - Maintains chronological history of all responses (original + resends)
+  - AI has context on all responses when analyzing changes
+  - Conditional inclusion: only includes full history when relevant (token optimization)
+- **Smart Context Management**: Intelligent token optimization
+  - Response truncation for large responses (~1,500 tokens max)
+  - Chat history compression (summarizes older messages)
+  - Conditional response inclusion (only when asked about)
+  - Limits response history to last 2-3 responses
+  - Keeps last 15 messages in conversation history
+- **Multi-Provider Support**: Works with Claude, Gemini, and local Ollama models
+  - Automatic model detection for Anthropic and Gemini APIs
+  - Manual URL/model configuration for local models
+  - Streaming support for all providers
+- **Use Cases**:
+  - Security testing and penetration testing guidance
+  - Request/response explanation and debugging
+  - Automated request modification for testing
+  - Bug bounty report generation
+  - Vulnerability identification and attack vector suggestions
+  - Multi-step attack chain planning with cross-request context
+
+#### Other AI Features
+- **Explain Request** (Claude/Gemini) with streaming responses.
+- **Suggest Attack Vectors**: request + response analysis; auto-send if no response; payload suggestions; reflections/errors/multi-step chains; fallback to request-only with warning.
+- **Context menu "Explain with AI"** for selected text.
+- **Attack Surface Analysis** per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
+- **Export AI outputs** as Markdown or PDF to save RPD/TPM.
 
 ### Productivity & Theming
 - **7 Beautiful Themes**: Choose from a variety of modern, carefully crafted themes:
