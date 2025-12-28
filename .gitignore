@@ -20,3 +20,7 @@ coverage/
 .zip-files.txt
 rep-plus-extension.zip
 
+# IDE and development directories
+.kiro/
+.vscode/
+

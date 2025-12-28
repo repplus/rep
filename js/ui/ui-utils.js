@@ -1704,7 +1704,7 @@ export function exportRequests() {
                 req.response.headers.forEach(h => resHeadersObj[h.name] = h.value);
             }
 
-            return {
+            let requestData = {
                 id: `req_${index + 1}`,
                 method: req.request.method,
                 url: req.request.url,
@@ -1717,6 +1717,11 @@ export function exportRequests() {
                 },
                 timestamp: req.capturedAt
             };
+
+            const enhancedData = { requestData, originalRequest: req };
+            events.emit(EVENT_NAMES.EXPORT_REQUEST_DATA, enhancedData);
+            
+            return enhancedData.requestData;
         })
     };
 
@@ -1769,11 +1774,16 @@ export function importRequests(file) {
                         headers: resHeadersArr,
                         content: { text: item.response ? item.response.body : '' }
                     },
+                    responseHeaders: resHeadersArr,
                     capturedAt: item.timestamp || Date.now(),
                     starred: false
                 };
 
-                // Use action to add request (automatically emits events)
+                events.emit(EVENT_NAMES.IMPORT_REQUEST_DATA, { 
+                    importedData: item, 
+                    newRequest: newReq 
+                });
+
                 actions.request.add(newReq);
             });
 

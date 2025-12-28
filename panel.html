@@ -362,6 +362,7 @@
                         <button class="view-tab" data-view="hex" data-pane="response">Hex</button>
                         <button class="view-tab" data-view="json" data-pane="response">Json</button>
                         <button class="view-tab" data-view="preview" data-pane="response">Preview</button>
+                        <button class="view-tab" data-view="security" data-pane="response">Security</button>
                     </div>
                     <div class="pane-body">
                         <div class="editor-container">
@@ -380,6 +381,9 @@
                                     <span class="json-warning-text">Not a valid JSON - showing raw body</span>
                                 </div>
                                 <pre id="res-json-display" class="json-display"></pre>
+                            </div>
+                            <div id="res-view-security" class="view-content" style="display: none;">
+                                <!-- Security analysis content will be rendered here -->
                             </div>
                             <div id="res-view-preview" class="view-content" style="display: none;">
                                 <div class="preview-controls" style="padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">

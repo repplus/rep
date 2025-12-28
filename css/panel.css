@@ -5135,3 +5135,553 @@ pre {
     }
 }
 
+
+
+/* ==========================================
+   Security Headers Analyzer Styles
+   ========================================== */
+
+/* Security Analysis Container */
+.security-analysis {
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Security Score Display */
+.security-score {
+    background: var(--sidebar-bg);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+}
+
+.security-score .score-display {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.security-score .score-grade {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.security-score .score-value {
+    font-size: 1rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.security-score .score-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.security-score .score-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+
+/* Grade Colors */
+.security-score.grade-a .score-grade,
+.security-score.grade-a .score-fill {
+    color: var(--success-color);
+    background: var(--success-color);
+}
+
+.security-score.grade-b .score-grade,
+.security-score.grade-b .score-fill {
+    color: #fdd663;
+    background: #fdd663;
+}
+
+.security-score.grade-c .score-grade,
+.security-score.grade-c .score-fill {
+    color: #ffa726;
+    background: #ffa726;
+}
+
+.security-score.grade-d .score-grade,
+.security-score.grade-d .score-fill {
+    color: #ff7043;
+    background: #ff7043;
+}
+
+.security-score.grade-f .score-grade,
+.security-score.grade-f .score-fill {
+    color: var(--error-color);
+    background: var(--error-color);
+}
+
+/* Security Findings */
+.security-findings {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.security-findings h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.security-finding {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-xs);
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+}
+
+.security-finding .finding-icon {
+    flex-shrink: 0;
+    font-size: 0.875rem;
+}
+
+.security-finding .finding-header {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: var(--text-color);
+    min-width: 180px;
+}
+
+.security-finding .finding-value {
+    font-size: 0.75rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    word-break: break-all;
+    flex: 1;
+}
+
+.security-finding .finding-message {
+    font-size: 0.75rem;
+    color: var(--text-color);
+    opacity: 0.8;
+    flex: 1;
+}
+
+.security-finding.secure {
+    border-left: 3px solid var(--success-color);
+}
+
+.security-finding.warning {
+    border-left: 3px solid #ffa726;
+}
+
+.security-finding.missing {
+    border-left: 3px solid var(--error-color);
+}
+
+/* Security Actions */
+.security-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.security-actions .action-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-color);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.security-actions .action-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--accent-color);
+}
+
+/* Export Dropdown */
+.export-dropdown {
+    position: relative;
+}
+
+.export-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    display: none;
+    min-width: 120px;
+    margin-bottom: var(--spacing-xs);
+    z-index: 100;
+}
+
+.export-menu.visible {
+    display: block;
+}
+
+.export-option {
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: background 0.2s ease;
+}
+
+.export-option:hover {
+    background: var(--hover-bg);
+}
+
+.export-option:first-child {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.export-option:last-child {
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* Empty State */
+.security-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-color);
+    opacity: 0.6;
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.security-empty-state .empty-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.security-empty-state p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Security View Content */
+#res-view-security {
+    flex-direction: column;
+    height: 100%;
+}
+
+#res-view-security.active {
+    display: flex;
+}
+
+
+/* Security Indicators for Request List */
+.security-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+    margin-right: 4px;
+    min-width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    cursor: default;
+    white-space: pre-line;
+}
+
+.security-indicator.grade-a {
+    background: rgba(129, 201, 149, 0.25);
+    color: #81c995;
+    border: 1px solid rgba(129, 201, 149, 0.4);
+}
+
+.security-indicator.grade-b {
+    background: rgba(253, 214, 99, 0.25);
+    color: #fdd663;
+    border: 1px solid rgba(253, 214, 99, 0.4);
+}
+
+.security-indicator.grade-c {
+    background: rgba(255, 167, 38, 0.25);
+    color: #ffa726;
+    border: 1px solid rgba(255, 167, 38, 0.4);
+}
+
+.security-indicator.grade-d {
+    background: rgba(255, 112, 67, 0.25);
+    color: #ff7043;
+    border: 1px solid rgba(255, 112, 67, 0.4);
+}
+
+.security-indicator.grade-f {
+    background: rgba(242, 139, 130, 0.25);
+    color: #f28b82;
+    border: 1px solid rgba(242, 139, 130, 0.4);
+}
+
+/* Light theme overrides for security indicators */
+.light-theme .security-indicator.grade-a {
+    background: #e6ffec;
+    color: #137333;
+    border-color: #a8dab5;
+}
+
+.light-theme .security-indicator.grade-b {
+    background: #fef7e0;
+    color: #b06000;
+    border-color: #f5d96a;
+}
+
+.light-theme .security-indicator.grade-c {
+    background: #fff3e0;
+    color: #e65100;
+    border-color: #ffcc80;
+}
+
+.light-theme .security-indicator.grade-d {
+    background: #fbe9e7;
+    color: #d84315;
+    border-color: #ffab91;
+}
+
+.light-theme .security-indicator.grade-f {
+    background: #fce8e6;
+    color: #c5221f;
+    border-color: #f5a9a9;
+}
+
+
+/* Bulk Analysis Modal */
+.bulk-analysis-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.bulk-modal-content {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-lg);
+}
+
+.bulk-modal-content .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.bulk-modal-content .modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.bulk-modal-content .modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-color);
+    opacity: 0.6;
+    line-height: 1;
+}
+
+.bulk-modal-content .modal-close-btn:hover {
+    opacity: 1;
+}
+
+.bulk-modal-body {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.bulk-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+}
+
+/* Bulk Progress */
+.bulk-progress-section {
+    text-align: center;
+}
+
+.bulk-progress-text {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 0.875rem;
+}
+
+.bulk-progress-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: var(--spacing-sm);
+}
+
+.bulk-progress-fill {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+
+.bulk-progress-count {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+/* Bulk Results */
+.bulk-summary {
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.summary-stat {
+    text-align: center;
+}
+
+.summary-stat .stat-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.summary-stat .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.bulk-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.bulk-section h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Grade Distribution */
+.grade-distribution {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.grade-badge {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.grade-badge.grade-a {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success-color);
+}
+
+.grade-badge.grade-b,
+.grade-badge.grade-c {
+    background: rgba(255, 167, 38, 0.2);
+    color: #ffa726;
+}
+
+.grade-badge.grade-d,
+.grade-badge.grade-f {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error-color);
+}
+
+/* Common Issues List */
+.common-issues-list {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    font-size: 0.8125rem;
+}
+
+.common-issues-list li {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Performers List */
+.performers-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.performer-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--sidebar-bg);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+}
+
+.performer-item .performer-grade {
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.performer-item .performer-path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
+.performer-item.grade-a .performer-grade {
+    color: var(--success-color);
+}
+
+.performer-item.grade-b .performer-grade,
+.performer-item.grade-c .performer-grade {
+    color: #ffa726;
+}
+
+.performer-item.grade-d .performer-grade,
+.performer-item.grade-f .performer-grade {
+    color: var(--error-color);
+}

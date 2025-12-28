@@ -19,6 +19,7 @@ import { initMultiTabCapture } from './network/multi-tab.js';
 import { initExtractorUI } from './features/extractors/index.js';
 import { setupAIFeatures } from './features/ai/index.js';
 import { setupLLMChat } from './features/llm-chat/index.js';
+import { setupSecurityHeaders } from './features/security-headers/index.js';
 import { handleSendRequest } from './network/handler.js';
 import { initSearch } from './search/index.js';
 
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupBulkReplay();
     setupAIFeatures(elements);
     setupLLMChat(elements);
+    setupSecurityHeaders(elements);
     initSearch();
 
     // Promotional Banner

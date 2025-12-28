@@ -124,5 +124,7 @@ export const EVENT_NAMES = {
     // Export/Import events
     REQUESTS_EXPORTED: 'requests:exported',
     REQUESTS_IMPORTED: 'requests:imported',
+    EXPORT_REQUEST_DATA: 'export:request-data',
+    IMPORT_REQUEST_DATA: 'import:request-data',
 };
 

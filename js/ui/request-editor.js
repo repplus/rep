@@ -444,7 +444,7 @@ export function switchResponseView(view) {
     });
 
     // Update Content Visibility
-    ['pretty', 'raw', 'hex', 'render', 'json', 'preview'].forEach(v => {
+    ['pretty', 'raw', 'hex', 'render', 'json', 'preview', 'security'].forEach(v => {
         const el = document.getElementById(`res-view-${v}`);
         if (el) {
             el.style.display = v === view ? 'flex' : 'none';
