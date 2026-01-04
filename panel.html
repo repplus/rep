@@ -793,11 +793,18 @@
                         <div class="empty-state">No endpoints found yet. Click "Scan" to start.</div>
                     </div>
                     <div id="endpoints-pagination" class="pagination-container" style="display: none;"></div>
-                    <p class="disclaimer-text"
-                        style="margin-top: 15px; font-size: 11px; color: #888; border-top: 1px solid var(--border-color); padding-top: 10px;">
-                        <strong>Note:</strong> Endpoint extraction uses pattern matching and may include some false
-                        positives. Endpoints are sorted by confidence level.
-                    </p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <p class="disclaimer-text" style="margin: 0; font-size: 11px; color: #888;">
+                            <strong>Note:</strong> Endpoint extraction uses pattern matching and may include some false
+                            positives. Endpoints are sorted by confidence level.
+                        </p>
+                        <button id="copy-all-endpoints-btn" class="secondary-btn" style="display: none; padding: 6px 12px; font-size: 12px;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" style="margin-right: 4px;">
+                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+                            </svg>
+                            Copy All Endpoints
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Parameters Tab Content -->

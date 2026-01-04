@@ -253,6 +253,7 @@ export function initExtractorUI() {
     // Results containers
     const secretsResults = document.getElementById('secrets-results');
     const endpointsResults = document.getElementById('endpoints-results');
+    const copyAllEndpointsBtn = document.getElementById('copy-all-endpoints-btn');
     const parametersResults = document.getElementById('parameters-results');
 
     // State
@@ -1189,9 +1190,12 @@ export function initExtractorUI() {
         if (results.length === 0) {
             endpointsResults.innerHTML = '<div class="empty-state">No endpoints found matching your criteria.</div>';
             if (container) container.style.display = 'none';
+            if (copyAllEndpointsBtn) copyAllEndpointsBtn.style.display = 'none';
             return;
         }
 
+        // Show copy all button when there are results
+        if (copyAllEndpointsBtn) copyAllEndpointsBtn.style.display = 'flex';
         // Apply sorting
         let sortedResults = results;
         if (endpointsSort.column) {
@@ -1950,6 +1954,41 @@ export function initExtractorUI() {
         container.appendChild(prevBtn);
         container.appendChild(pageInfo);
         container.appendChild(nextBtn);
+    }
+
+    // Copy All Endpoints Button Handler
+    if (copyAllEndpointsBtn) {
+        copyAllEndpointsBtn.addEventListener('click', () => {
+            // Get filtered results based on current domain and search filters
+            const filtered = filterByDomainAndSearch(currentEndpointResults);
+            
+            if (filtered.length === 0) {
+                return;
+            }
+
+            // Format endpoints as text (one per line with method)
+            const endpointsText = filtered.map(r => {
+                // Construct full URL if endpoint is relative
+                let fullUrl = r.endpoint;
+                if (r.endpoint.startsWith('/') && r.baseUrl) {
+                    fullUrl = r.baseUrl + r.endpoint;
+                }
+                return `${r.method} ${fullUrl}`;
+            }).join('\n');
+
+            // Copy to clipboard
+            copyToClipboard(endpointsText);
+
+            // Visual feedback
+            const originalText = copyAllEndpointsBtn.innerHTML;
+            copyAllEndpointsBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" style="margin-right: 4px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>Copied ${filtered.length} endpoints!`;
+            copyAllEndpointsBtn.style.color = '#81c995';
+            
+            setTimeout(() => {
+                copyAllEndpointsBtn.innerHTML = originalText;
+                copyAllEndpointsBtn.style.color = '';
+            }, 2000);
+        });
     }
 }
 
