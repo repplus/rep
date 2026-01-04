@@ -6,3 +6,17 @@ build/
 *.tmp
 temp/
 
+# Test coverage (exclude from git, but keep test files)
+coverage/
+.nyc_output/
+
+# Dev dependencies (exclude from Chrome Web Store builds, but keep in git for contributors)
+# Note: package.json and package-lock.json are needed for contributors, but excluded from zip
+# Note: vitest.config.js is needed for contributors, but excluded from zip
+# Note: Test files (tests/, *.test.js) are needed for contributors, but excluded from zip
+# The package.js script handles excluding these from the zip file
+
+# Packaging temp files
+.zip-files.txt
+rep-plus-extension.zip
+

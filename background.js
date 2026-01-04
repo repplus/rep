@@ -19,7 +19,7 @@ chrome.runtime.onConnect.addListener((port) => {
         if (msg.type === 'ping') {
             console.log('Background: Responding to ping');
             port.postMessage({ type: 'pong' });
-        } else if (msg.type === 'local-model-request') {
+        } else if (msg.type === 'local-model-request' || msg.type === 'local-model-chat') {
             // Handle local model request via port
             const requestId = msg.requestId || `local-${Date.now()}-${Math.random()}`;
             console.log('Background: Received local model request', requestId, 'URL:', msg.url, 'Body:', JSON.stringify(msg.body).substring(0, 100));
@@ -37,11 +37,18 @@ chrome.runtime.onConnect.addListener((port) => {
             
             // Proxy the request to localhost
             // Note: Service workers need host_permissions for localhost in MV3
-            const requestBody = {
-                model: msg.body.model,
-                prompt: msg.body.prompt,
-                stream: msg.body.stream !== undefined ? msg.body.stream : true
-            };
+            // Support both old format (prompt) and new format (messages array)
+            const requestBody = msg.body.messages 
+                ? {
+                    model: msg.body.model,
+                    messages: msg.body.messages,
+                    stream: msg.body.stream !== undefined ? msg.body.stream : true
+                }
+                : {
+                    model: msg.body.model,
+                    prompt: msg.body.prompt,
+                    stream: msg.body.stream !== undefined ? msg.body.stream : true
+                };
             
             console.log('Background: Sending fetch request to', msg.url, 'with body:', JSON.stringify(requestBody).substring(0, 200));
             

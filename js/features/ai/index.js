@@ -1,5 +1,11 @@
 // AI Integration Module - Main entry point and UI setup
-import { getAISettings, saveAISettings, streamExplanationWithSystem } from './core.js';
+import { 
+    getAISettings, 
+    saveAISettings, 
+    streamExplanationWithSystem,
+    fetchAnthropicModels,
+    fetchGeminiModels
+} from './core.js';
 import { handleAIExplanation } from './explain.js';
 import { handleAttackSurfaceAnalysis } from './suggestions.js';
 import { state } from '../../core/state.js';
@@ -119,6 +125,66 @@ export function setupAIFeatures(elements) {
     const exportMdItem = document.getElementById('ai-export-md-item');
     const exportPdfItem = document.getElementById('ai-export-pdf-item');
 
+    // Helpers to populate model dropdowns dynamically
+    async function populateAnthropicModels(apiKey, currentModel) {
+        if (!anthropicModelSelect || !apiKey) return;
+
+        const models = await fetchAnthropicModels(apiKey);
+        if (!models || models.length === 0) {
+            // Leave existing options as fallback
+            return;
+        }
+
+        const existingValue = currentModel || anthropicModelSelect.value || 'claude-3-5-sonnet-20241022';
+
+        anthropicModelSelect.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.label;
+            anthropicModelSelect.appendChild(opt);
+        });
+
+        // Ensure current model is preserved even if not in list
+        if (existingValue && !models.some(m => m.id === existingValue)) {
+            const customOpt = document.createElement('option');
+            customOpt.value = existingValue;
+            customOpt.textContent = `${existingValue} (saved)`;
+            anthropicModelSelect.appendChild(customOpt);
+        }
+
+        anthropicModelSelect.value = existingValue;
+    }
+
+    async function populateGeminiModels(apiKey, currentModel) {
+        if (!geminiModelSelect || !apiKey) return;
+
+        const models = await fetchGeminiModels(apiKey);
+        if (!models || models.length === 0) {
+            // Leave existing options as fallback
+            return;
+        }
+
+        const existingValue = currentModel || geminiModelSelect.value || 'gemini-flash-latest';
+
+        geminiModelSelect.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.label;
+            geminiModelSelect.appendChild(opt);
+        });
+
+        if (existingValue && !models.some(m => m.id === existingValue)) {
+            const customOpt = document.createElement('option');
+            customOpt.value = existingValue;
+            customOpt.textContent = `${existingValue} (saved)`;
+            geminiModelSelect.appendChild(customOpt);
+        }
+
+        geminiModelSelect.value = existingValue;
+    }
+
     // Handle provider switching
     if (aiProviderSelect) {
         aiProviderSelect.addEventListener('change', () => {
@@ -129,10 +195,19 @@ export function setupAIFeatures(elements) {
             
             if (provider === 'gemini') {
                 geminiSettings.style.display = 'block';
+                // Try to auto-load models if API key is present
+                const key = geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '';
+                if (key) {
+                    populateGeminiModels(key, geminiModelSelect ? geminiModelSelect.value : '');
+                }
             } else if (provider === 'local') {
                 localSettings.style.display = 'block';
             } else {
                 anthropicSettings.style.display = 'block';
+                const key = anthropicApiKeyInput ? anthropicApiKeyInput.value.trim() : '';
+                if (key) {
+                    populateAnthropicModels(key, anthropicModelSelect ? anthropicModelSelect.value : '');
+                }
             }
         });
     }
@@ -151,6 +226,8 @@ export function setupAIFeatures(elements) {
                 geminiApiKeyInput.value = apiKey;
                 if (geminiModelSelect) geminiModelSelect.value = model;
                 geminiSettings.style.display = 'block';
+                // Auto-populate models list
+                populateGeminiModels(apiKey, model);
             } else if (provider === 'local') {
                 if (localApiUrlInput) localApiUrlInput.value = apiKey; // apiKey is actually the URL for local
                 if (localModelInput) localModelInput.value = model;
@@ -159,6 +236,8 @@ export function setupAIFeatures(elements) {
                 anthropicApiKeyInput.value = apiKey;
                 if (anthropicModelSelect) anthropicModelSelect.value = model;
                 anthropicSettings.style.display = 'block';
+                // Auto-populate models list
+                populateAnthropicModels(apiKey, model);
             }
 
             settingsModal.style.display = 'block';

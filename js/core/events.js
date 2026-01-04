@@ -84,6 +84,12 @@ export const EVENT_NAMES = {
     REQUEST_COLOR_CHANGED: 'request:color-changed',
     REQUEST_FILTERED: 'request:filtered',
     REQUEST_RENDERED: 'request:rendered',
+    REQUEST_STAR_UPDATED: 'request:star-updated',
+    REQUEST_ACTION_STAR: 'request:action:star',
+    REQUEST_ACTION_GROUP_STAR: 'request:action:group-star',
+    REQUEST_ACTION_DELETE_GROUP: 'request:action:delete-group',
+    REQUEST_ACTION_TIMELINE: 'request:action:timeline',
+    REQUEST_ACTION_COLOR: 'request:action:color',
     
     // UI events
     UI_RESIZE: 'ui:resize',

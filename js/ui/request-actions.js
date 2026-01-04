@@ -1,8 +1,42 @@
 // Request Actions Module - Filtering, starring, colors, timeline
-import { state } from '../core/state.js';
+import { state, actions } from '../core/state.js';
 import { formatTime } from '../core/utils/format.js';
 import { getHostname } from '../core/utils/network.js';
 import { events, EVENT_NAMES } from '../core/events.js';
+
+// Set up event listeners for decoupled communication
+events.on(EVENT_NAMES.REQUEST_ACTION_STAR, (data) => {
+    if (data && data.request) {
+        toggleStar(data.request);
+    }
+});
+
+events.on(EVENT_NAMES.REQUEST_ACTION_GROUP_STAR, (data) => {
+    if (data && data.type && data.hostname && data.btn) {
+        toggleGroupStar(data.type, data.hostname, data.btn);
+    }
+});
+
+events.on(EVENT_NAMES.REQUEST_ACTION_DELETE_GROUP, (data) => {
+    if (data && data.type && data.hostname && data.groupElement) {
+        deleteGroup(data.type, data.hostname, data.groupElement);
+    }
+});
+
+// Note: REQUEST_ACTION_TIMELINE is emitted by UI components (like request-list.js) to trigger timeline filter
+// The action itself (actions.timeline.setFilter) does NOT emit this event to avoid circular loops
+// This listener is kept for backward compatibility if any code still emits this event
+events.on(EVENT_NAMES.REQUEST_ACTION_TIMELINE, (data) => {
+    if (data && typeof data.timestamp === 'number' && typeof data.requestIndex === 'number') {
+        setTimelineFilter(data.timestamp, data.requestIndex);
+    }
+});
+
+events.on(EVENT_NAMES.REQUEST_ACTION_COLOR, (data) => {
+    if (data && typeof data.index === 'number') {
+        setRequestColor(data.index, data.color);
+    }
+});
 
 const STAR_ICON_FILLED = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
 const STAR_ICON_OUTLINE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.01 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>';
@@ -13,11 +47,13 @@ function getRequestList() {
 }
 
 export function toggleStar(request) {
-    request.starred = !request.starred;
-
     const requestIndex = state.requests.indexOf(request);
-    const requestList = getRequestList();
     
+    // Use action to update state (automatically emits events)
+    actions.request.toggleStar(request, requestIndex);
+    
+    // Update UI directly (since we're in the UI layer)
+    const requestList = getRequestList();
     if (requestIndex !== -1 && requestList) {
         const item = requestList.querySelector(`.request-item[data-index="${requestIndex}"]`);
         if (item) {
@@ -30,140 +66,32 @@ export function toggleStar(request) {
             }
         }
     }
-
-    // Only refresh filter if star filter is active, otherwise just update the UI
-    if (state.starFilterActive) {
-    const scrollTop = requestList ? requestList.scrollTop : 0;
-    events.emit('request:filtered', { preserveScroll: true, scrollTop });
-    }
 }
 
 export function toggleGroupStar(type, hostname, btn) {
     const isPage = type === 'page';
     const set = isPage ? state.starredPages : state.starredDomains;
     const currentlyStarred = set.has(hostname);
+    const newStatus = !currentlyStarred;
 
-    if (currentlyStarred) {
-        set.delete(hostname);
-        btn.classList.remove('active');
-        btn.innerHTML = STAR_ICON_OUTLINE;
-        btn.title = 'Star Group';
-    } else {
-        set.add(hostname);
+    // Use action to update state (automatically emits events)
+    actions.request.toggleGroupStar(type, hostname, newStatus);
+    
+    // Update UI button
+    if (newStatus) {
         btn.classList.add('active');
         btn.innerHTML = STAR_ICON_FILLED;
         btn.title = 'Unstar Group';
+    } else {
+        btn.classList.remove('active');
+        btn.innerHTML = STAR_ICON_OUTLINE;
+        btn.title = 'Star Group';
     }
-
-    const newStatus = !currentlyStarred;
-
-    // Update all requests in this group
-    state.requests.forEach((req, index) => {
-        const reqPageHostname = getHostname(req.pageUrl || req.request.url);
-        const reqHostname = getHostname(req.request.url);
-
-        let shouldUpdate = false;
-        if (isPage) {
-            // Only update if it belongs to the page AND is first-party (same hostname)
-            if (reqPageHostname === hostname && reqHostname === hostname) shouldUpdate = true;
-        } else {
-            if (reqHostname === hostname) shouldUpdate = true;
-        }
-
-        if (shouldUpdate) {
-            if (req.starred !== newStatus) {
-                req.starred = newStatus;
-                // Update UI via event
-                events.emit('request:star-updated', { index, starred: newStatus });
-            }
-        }
-    });
-
-    // Emit event to refresh list
-    events.emit(EVENT_NAMES.REQUEST_FILTERED);
 }
 
 export function deleteGroup(type, hostname, groupElement) {
-    const isPage = type === 'page';
-
-    // Find and remove all requests belonging to this group
-    const requestsToRemove = [];
-    state.requests.forEach((req, index) => {
-        const reqPageHostname = getHostname(req.pageUrl || req.request.url);
-        const reqHostname = getHostname(req.request.url);
-
-        let shouldRemove = false;
-        if (isPage) {
-            // For page groups, remove requests that belong to this page
-            // This includes both first-party (same hostname) and third-party requests
-            if (reqPageHostname === hostname) shouldRemove = true;
-        } else {
-            // For domain groups, remove requests from this domain
-            if (reqHostname === hostname) shouldRemove = true;
-        }
-
-        if (shouldRemove) {
-            requestsToRemove.push(index);
-        }
-    });
-
-    // Remove requests in reverse order to maintain correct indices
-    requestsToRemove.reverse().forEach(index => {
-        state.requests.splice(index, 1);
-    });
-
-    // Also drop any blocked (queued) requests belonging to this group
-    const beforeQueue = state.blockedQueue.length;
-    state.blockedQueue = state.blockedQueue.filter(req => {
-        const reqPageHostname = getHostname(req.pageUrl || req.request.url);
-        const reqHostname = getHostname(req.request.url);
-        if (isPage) {
-            return reqPageHostname !== hostname;
-        }
-        return reqHostname !== hostname;
-    });
-    const removedFromQueue = beforeQueue - state.blockedQueue.length;
-
-    // Clear starred state for this group
-    if (isPage) {
-        state.starredPages.delete(hostname);
-        state.domainsWithAttackSurface.delete(hostname);
-        // Also clear attack surface categories for requests in this page
-        Object.keys(state.attackSurfaceCategories).forEach(key => {
-            const reqIndex = parseInt(key);
-            if (reqIndex < state.requests.length) {
-                const req = state.requests[reqIndex];
-                if (req && getHostname(req.pageUrl || req.request.url) === hostname) {
-                    delete state.attackSurfaceCategories[key];
-                }
-            } else {
-                // Request was deleted, remove its category entry
-                delete state.attackSurfaceCategories[key];
-            }
-        });
-    } else {
-        state.starredDomains.delete(hostname);
-        state.domainsWithAttackSurface.delete(hostname);
-        // Clear attack surface categories for requests from this domain
-        Object.keys(state.attackSurfaceCategories).forEach(key => {
-            const reqIndex = parseInt(key);
-            if (reqIndex < state.requests.length) {
-                const req = state.requests[reqIndex];
-                if (req && getHostname(req.request.url) === hostname) {
-                    delete state.attackSurfaceCategories[key];
-                }
-            } else {
-                delete state.attackSurfaceCategories[key];
-            }
-        });
-    }
-
-    // Clear selected request if it was deleted
-    // Check if selectedRequest was one of the removed requests
-    const selectedIndex = state.requests.indexOf(state.selectedRequest);
-    if (state.selectedRequest && (selectedIndex === -1 || requestsToRemove.includes(selectedIndex))) {
-        state.selectedRequest = null;
-    }
+    // Use action to delete group (automatically handles state and events)
+    const removedFromQueue = actions.request.deleteGroup(type, hostname);
 
     // Animate fade-out and remove the group element from DOM
     if (groupElement) {
@@ -177,17 +105,6 @@ export function deleteGroup(type, hostname, groupElement) {
                 groupElement.parentNode.removeChild(groupElement);
             }
         }, 300);
-    }
-
-    // Emit event to refresh the entire list
-    events.emit(EVENT_NAMES.REQUEST_FILTERED);
-    if (removedFromQueue > 0) {
-        events.emit('block-queue:updated');
-    }
-    
-    // Also emit UI clear event to reset editors if needed
-    if (state.selectedRequest === null) {
-        events.emit('ui:clear-all');
     }
 }
 
@@ -263,23 +180,18 @@ export function toggleAllGroups() {
 export function setTimelineFilter(timestamp, requestIndex) {
     if (state.timelineFilterTimestamp === timestamp && state.timelineFilterRequestIndex === requestIndex) {
         // Clear filter if clicking the same timestamp
-        state.timelineFilterTimestamp = null;
-        state.timelineFilterRequestIndex = null;
-
+        actions.timeline.clear();
         // Restore grouped view by re-rendering all requests
         restoreGroupedView();
     } else {
-        state.timelineFilterTimestamp = timestamp;
-        state.timelineFilterRequestIndex = requestIndex;
-
+        // Use action to set timeline filter (automatically emits events)
+        actions.timeline.setFilter(timestamp, requestIndex);
         // Re-sort requests chronologically when timeline filter is active
         sortRequestsChronologically();
     }
 
     // Update UI indicator
     updateTimelineFilterIndicator();
-    // Emit event to refresh list
-    events.emit(EVENT_NAMES.REQUEST_FILTERED);
 }
 
 function restoreGroupedView() {
@@ -566,22 +478,21 @@ export function getFilteredRequests() {
 }
 
 export function setRequestColor(index, color) {
-    if (state.requests[index]) {
-        state.requests[index].color = color;
+    // Use action to set color (automatically emits events)
+    actions.request.setColor(index, color);
 
-        // Update DOM elements (both grouped and timeline view)
-        const requestList = getRequestList();
-        if (!requestList) return;
-        
-        const items = requestList.querySelectorAll(`.request-item[data-index="${index}"]`);
-        items.forEach(item => {
-            // Remove all color classes
-            item.classList.remove('color-red', 'color-green', 'color-blue', 'color-yellow', 'color-purple', 'color-orange');
-            if (color) {
-                item.classList.add(`color-${color}`);
-            }
-        });
-    }
+    // Update DOM elements (both grouped and timeline view)
+    const requestList = getRequestList();
+    if (!requestList) return;
+    
+    const items = requestList.querySelectorAll(`.request-item[data-index="${index}"]`);
+    items.forEach(item => {
+        // Remove all color classes
+        item.classList.remove('color-red', 'color-green', 'color-blue', 'color-yellow', 'color-purple', 'color-orange');
+        if (color) {
+            item.classList.add(`color-${color}`);
+        }
+    });
 }
 
 // Note: filterRequests is defined in request-list.js to avoid circular dependency

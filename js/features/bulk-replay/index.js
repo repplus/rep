@@ -289,11 +289,37 @@ export function setupBulkReplay() {
             }
 
             const editorText = editor.textContent || editor.innerText || '';
-            let startIndex = editorText.indexOf(selectedText);
-
-            // As a small safeguard, if the trimmed text isn't found, try the raw text
-            if (startIndex === -1 && rawSelected) {
-                startIndex = editorText.indexOf(rawSelected);
+            
+            // Use stored character offsets if available (most accurate - handles duplicate text)
+            // This fixes the bug where marking "admin" in password field would also mark it in email field
+            let startIndex = -1;
+            let lengthToUse = selectedText.length;
+            
+            if (contextMenu.dataset.charStart && contextMenu.dataset.charEnd) {
+                // Use the exact character offsets from the selection
+                startIndex = parseInt(contextMenu.dataset.charStart, 10);
+                const endIndex = parseInt(contextMenu.dataset.charEnd, 10);
+                lengthToUse = endIndex - startIndex;
+                
+                // Verify the text at this position matches (safety check)
+                const textAtPosition = editorText.substring(startIndex, endIndex);
+                if (textAtPosition !== selectedText && textAtPosition !== rawSelected) {
+                    // Offsets might be stale (editor content changed), fall back to search
+                    startIndex = -1;
+                }
+            }
+            
+            // Fallback: if offsets not available or invalid, search for the text
+            if (startIndex === -1) {
+                startIndex = editorText.indexOf(selectedText);
+                
+                // As a small safeguard, if the trimmed text isn't found, try the raw text
+                if (startIndex === -1 && rawSelected) {
+                    startIndex = editorText.indexOf(rawSelected);
+                    if (startIndex !== -1) {
+                        lengthToUse = rawSelected.length;
+                    }
+                }
             }
 
             if (startIndex === -1) {
@@ -302,8 +328,6 @@ export function setupBulkReplay() {
                 contextMenu.classList.remove('show');
                 return;
             }
-
-            const lengthToUse = startIndex === -1 ? 0 : selectedText.length;
             const before = editorText.substring(0, startIndex);
             const middle = editorText.substring(startIndex, startIndex + lengthToUse);
             const after = editorText.substring(startIndex + lengthToUse);

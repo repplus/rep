@@ -1,6 +1,6 @@
 // Multi-tab Capture Module
-import { addRequest } from '../core/state.js';
-import { renderRequestItem } from '../ui/main-ui.js';
+import { actions } from '../core/state.js';
+import { events, EVENT_NAMES } from '../core/events.js';
 
 export function initMultiTabCapture() {
     const multiTabBtn = document.getElementById('multi-tab-btn');
@@ -70,8 +70,8 @@ export function initMultiTabCapture() {
                     const isStatic = staticExtensions.some(ext => url.endsWith(ext) || url.includes(ext + '?'));
                     if (isStatic) return;
 
-                    const index = addRequest(harEntry);
-                    renderRequestItem(harEntry, index);
+                    // Use action to add request (automatically emits events)
+                    const index = actions.request.add(harEntry);
                 }
             });
 

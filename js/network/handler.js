@@ -1,23 +1,32 @@
 // Request Handler Module - High-level orchestrator for sending requests
 import { state, addToHistory } from '../core/state.js';
-import { elements, updateHistoryButtons } from '../ui/main-ui.js';
+import { elements } from '../ui/main-ui.js';
+import { events, EVENT_NAMES } from '../core/events.js';
 import { parseRequest } from './capture.js';
 import { sendRequest } from './request-sender.js';
 import { formatRawResponse, getStatusClass } from './response-parser.js';
 import { formatBytes } from '../core/utils/format.js';
 import { renderDiff } from '../core/utils/misc.js';
 import { highlightHTTP } from '../core/utils/network.js';
-import { events, EVENT_NAMES } from '../core/events.js';
 import { generateHexView } from '../ui/hex-view.js'
 import { generateJsonView } from '../ui/json-view.js'
+import { saveEditorState } from '../ui/request-editor.js';
 
 export async function handleSendRequest() {
     const rawContent = elements.rawRequestInput.innerText;
     const useHttps = elements.useHttpsCheckbox.checked;
 
+    // Save editor state before sending (preserve modifications)
+    if (state.selectedRequest) {
+        const requestIndex = state.requests.indexOf(state.selectedRequest);
+        if (requestIndex !== -1) {
+            saveEditorState(requestIndex);
+        }
+    }
+
     // Add to history
     addToHistory(rawContent, useHttps);
-    updateHistoryButtons();
+    events.emit(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS);
 
     try {
         const { url, options, method, filteredHeaders, bodyText } = parseRequest(rawContent, useHttps);
@@ -40,6 +49,14 @@ export async function handleSendRequest() {
 
         // Store current response
         state.currentResponse = rawResponse;
+        
+        // Save editor state (including response) after receiving response
+        if (state.selectedRequest) {
+            const requestIndex = state.requests.indexOf(state.selectedRequest);
+            if (requestIndex !== -1) {
+                saveEditorState(requestIndex);
+            }
+        }
 
         // Handle Diff Baseline
         if (!state.regularRequestBaseline) {

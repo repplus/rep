@@ -1,21 +1,26 @@
 // UI Utilities Module - Setup functions, resize, context menu, undo/redo, export/import
-import { state, clearRequests } from '../core/state.js';
+import { state, actions } from '../core/state.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { decodeJWT } from '../core/utils/misc.js';
-import { events } from '../core/events.js';
+import { events, EVENT_NAMES } from '../core/events.js';
 import { elements } from './main-ui.js'; // Keep for context menu and undo/redo which need direct element access
-import { renderRequestItem } from './request-list.js';
 
 export function updateHistoryButtons() {
-    const historyBackBtn = document.getElementById('history-back');
-    const historyFwdBtn = document.getElementById('history-fwd');
-    if (historyBackBtn) {
-        historyBackBtn.disabled = state.historyIndex <= 0;
+    // Update undo/redo buttons (renamed from history buttons)
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    if (undoBtn) {
+        undoBtn.disabled = state.undoStack.length <= 1;
     }
-    if (historyFwdBtn) {
-        historyFwdBtn.disabled = state.historyIndex >= state.requestHistory.length - 1;
+    if (redoBtn) {
+        redoBtn.disabled = state.redoStack.length === 0;
     }
 }
+
+// Set up event listener for decoupled communication
+events.on(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS, () => {
+    updateHistoryButtons();
+});
 
 export function toggleAllObjects() {
     const container = document.querySelector('.json-formatter-container');
@@ -49,8 +54,9 @@ export function toggleAllObjects() {
 
 
 export function clearAllRequestsUI() {
-    clearRequests();
-    state.blockedQueue = [];
+    // Use action to clear requests (automatically emits events)
+    actions.request.clearAll();
+    actions.blocking.clearBlockedQueue();
     const requestList = document.getElementById('request-list');
     if (requestList) {
         requestList.innerHTML = '';
@@ -62,9 +68,9 @@ export function clearAllRequestsUI() {
     }
 
     // Emit event to clear UI elements
-    events.emit('ui:clear-all'); // Using string literal since EVENT_NAMES import would add coupling
+    events.emit(EVENT_NAMES.UI_CLEAR_ALL);
     events.emit('block-queue:updated');
-    updateHistoryButtons();
+    events.emit(EVENT_NAMES.UI_UPDATE_HISTORY_BUTTONS);
 }
 
 export function setupResizeHandle() {
@@ -113,20 +119,57 @@ export function setupResizeHandle() {
         } else {
             const offsetX = e.clientX - containerRect.left;
             const containerWidth = containerRect.width;
+            
+            // Check if chat pane is open
+            const chatPane = document.getElementById('llm-chat-pane');
+            const isChatOpen = chatPane && chatPane.style.display !== 'none' && window.getComputedStyle(chatPane).display !== 'none';
+            
+            if (isChatOpen) {
+                // When chat is open, only resize request and response, keep chat fixed
+                const chatRect = chatPane.getBoundingClientRect();
+                const chatWidth = chatRect.width;
+                const chatResizeHandle = document.querySelector('.chat-resize-handle');
+                const chatResizeHandleWidth = chatResizeHandle ? (chatResizeHandle.offsetWidth || 5) : 5;
+                
+                // Available width is container minus chat pane and its resize handle
+                const availableWidth = containerWidth - chatWidth - chatResizeHandleWidth;
+                
+                // Enforce minimum pixel widths
+                const minLeftPx = 200;
+                const minRightPx = 200;
+                const clampedOffsetX = Math.min(
+                    Math.max(offsetX, minLeftPx),
+                    Math.max(availableWidth - minRightPx, minLeftPx)
+                );
+                
+                // Calculate percentages of available width (not full container)
+                let requestPercentage = (clampedOffsetX / availableWidth) * 100;
+                let responsePercentage = 100 - requestPercentage;
+                
+                // Convert to container percentages
+                const availablePercentage = (availableWidth / containerWidth) * 100;
+                requestPercentage = (requestPercentage / 100) * availablePercentage;
+                responsePercentage = (responsePercentage / 100) * availablePercentage;
+                
+                // Keep chat pane fixed, only adjust request and response
+                requestPane.style.flex = `0 0 ${requestPercentage}%`;
+                responsePane.style.flex = `0 0 ${responsePercentage}%`;
+            } else {
+                // When chat is closed, resize request and response normally
+                // Enforce minimum pixel widths to avoid layout cracking
+                const minLeftPx = 250;
+                const minRightPx = 250;
+                const clampedOffsetX = Math.min(
+                    Math.max(offsetX, minLeftPx),
+                    Math.max(containerWidth - minRightPx, minLeftPx)
+                );
 
-            // Enforce minimum pixel widths to avoid layout cracking
-            const minLeftPx = 250;
-            const minRightPx = 250;
-            const clampedOffsetX = Math.min(
-                Math.max(offsetX, minLeftPx),
-                Math.max(containerWidth - minRightPx, minLeftPx)
-            );
+                let percentage = (clampedOffsetX / containerWidth) * 100;
+                percentage = Math.max(20, Math.min(80, percentage));
 
-            let percentage = (clampedOffsetX / containerWidth) * 100;
-            percentage = Math.max(20, Math.min(80, percentage));
-
-            requestPane.style.flex = `0 0 ${percentage}%`;
-            responsePane.style.flex = `0 0 ${100 - percentage}%`;
+                requestPane.style.flex = `0 0 ${percentage}%`;
+                responsePane.style.flex = `0 0 ${100 - percentage}%`;
+            }
         }
     });
 
@@ -190,10 +233,25 @@ export function setupUndoRedo() {
         }, 500);
     });
 
-    // Update syntax highlighting on blur
+    // Update syntax highlighting on blur and save editor state
     elements.rawRequestInput.addEventListener('blur', () => {
         const content = elements.rawRequestInput.innerText;
         elements.rawRequestInput.innerHTML = highlightHTTP(content);
+        
+        // Auto-save editor state when user leaves the editor (switching requests, etc.)
+        if (state.selectedRequest) {
+            const requestIndex = state.requests.indexOf(state.selectedRequest);
+            if (requestIndex !== -1) {
+                // Import saveEditorState dynamically to avoid circular dependency
+                import('../ui/request-editor.js').then(module => {
+                    if (module.saveEditorState) {
+                        module.saveEditorState(requestIndex);
+                    }
+                }).catch(() => {
+                    // Silently fail if import fails
+                });
+            }
+        }
     });
 
     elements.rawRequestInput.addEventListener('keydown', (e) => {
@@ -246,6 +304,8 @@ function undo() {
     if (previousContent !== undefined) {
         elements.rawRequestInput.textContent = previousContent;
         elements.rawRequestInput.innerHTML = highlightHTTP(previousContent);
+        // Emit event to update button states
+        events.emit('ui:undo-redo-changed');
     }
 }
 
@@ -257,6 +317,8 @@ function redo() {
         state.undoStack.push(nextContent);
         elements.rawRequestInput.textContent = nextContent;
         elements.rawRequestInput.innerHTML = highlightHTTP(nextContent);
+        // Emit event to update button states
+        events.emit('ui:undo-redo-changed');
     }
 }
 
@@ -339,6 +401,11 @@ export function setupContextMenu() {
                                 contextBefore: editorText.substring(Math.max(0, startOffset - 20), startOffset), // Context for verification
                                 contextAfter: editorText.substring(endOffset, Math.min(editorText.length, endOffset + 20))
                             };
+                            
+                            // Store character offsets in context menu dataset for bulk replay
+                            // This allows marking the exact selected text even if it appears multiple times
+                            elements.contextMenu.dataset.charStart = startOffset.toString();
+                            elements.contextMenu.dataset.charEnd = endOffset.toString();
                         } else {
                             // Text mismatch
                             console.warn('Text mismatch in stored range', {
@@ -520,6 +587,12 @@ function hideContextMenu() {
     }
     if (elements.contextMenu.dataset.fullSelection) {
         delete elements.contextMenu.dataset.fullSelection;
+    }
+    if (elements.contextMenu.dataset.charStart) {
+        delete elements.contextMenu.dataset.charStart;
+    }
+    if (elements.contextMenu.dataset.charEnd) {
+        delete elements.contextMenu.dataset.charEnd;
     }
     currentSelection = null;
     currentRange = null;
@@ -1700,8 +1773,8 @@ export function importRequests(file) {
                     starred: false
                 };
 
-                state.requests.push(newReq);
-                renderRequestItem(newReq, state.requests.length - 1);
+                // Use action to add request (automatically emits events)
+                actions.request.add(newReq);
             });
 
             alert(`Imported ${data.requests.length} requests.`);
