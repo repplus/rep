@@ -20,6 +20,7 @@ import { initExtractorUI } from './features/extractors/index.js';
 import { setupAIFeatures } from './features/ai/index.js';
 import { setupLLMChat } from './features/llm-chat/index.js';
 import { handleSendRequest } from './network/handler.js';
+import { getUrlMappings, saveUrlMappings } from './network/url-mapping.js';
 import { initSearch } from './search/index.js';
 
 // UI Modules
@@ -119,6 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.sendBtn) {
         elements.sendBtn.addEventListener('click', handleSendRequest);
     }
+    if (elements.sendBtnLocal) {
+        elements.sendBtnLocal.addEventListener('click', () => handleSendRequest({ useUrlMapping: true }));
+    }
 
     // Remove Duplicates Toggle
     if (elements.removeDuplicatesBtn) {
@@ -214,6 +218,154 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 100);
             }
         });
+    }
+
+    // URL Mapping
+    const urlMappingBtn = document.getElementById('url-mapping-btn');
+    const urlMappingModal = document.getElementById('url-mapping-modal');
+    const urlMappingList = document.getElementById('url-mapping-list');
+    const addUrlMappingBtn = document.getElementById('add-url-mapping-btn');
+    const saveUrlMappingBtn = document.getElementById('save-url-mapping-btn');
+    const urlMappingBulkInput = document.getElementById('url-mapping-bulk-input');
+    const applyUrlMappingBulkBtn = document.getElementById('apply-url-mapping-bulk-btn');
+
+    function createUrlMappingRow(mapping = { from: '', to: '' }) {
+        const row = document.createElement('div');
+        row.className = 'url-mapping-row';
+        row.innerHTML = `
+            <input type="text" class="form-control url-mapping-from" placeholder="From (prefix)">
+            <span class="url-mapping-arrow">→</span>
+            <input type="text" class="form-control url-mapping-to" placeholder="To (prefix)">
+            <button type="button" class="icon-btn url-mapping-remove" title="Remove">×</button>
+        `;
+
+        const fromInput = row.querySelector('.url-mapping-from');
+        const toInput = row.querySelector('.url-mapping-to');
+        const removeBtn = row.querySelector('.url-mapping-remove');
+
+        if (fromInput) fromInput.value = mapping.from || '';
+        if (toInput) toInput.value = mapping.to || '';
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+            });
+        }
+
+        return row;
+    }
+
+    function loadUrlMappingsIntoModal() {
+        if (!urlMappingList) return;
+        urlMappingList.innerHTML = '';
+        const mappings = getUrlMappings();
+        if (mappings.length === 0) {
+            urlMappingList.appendChild(createUrlMappingRow());
+            return;
+        }
+        mappings.forEach(mapping => {
+            urlMappingList.appendChild(createUrlMappingRow(mapping));
+        });
+    }
+
+    if (urlMappingBtn && urlMappingModal) {
+        urlMappingBtn.addEventListener('click', () => {
+            loadUrlMappingsIntoModal();
+            if (urlMappingBulkInput) urlMappingBulkInput.value = '';
+            urlMappingModal.style.display = 'block';
+        });
+    }
+    
+    if (urlMappingModal) {
+        const urlMappingCloseBtn = urlMappingModal.querySelector('.close-modal');
+        if (urlMappingCloseBtn) {
+            urlMappingCloseBtn.addEventListener('click', () => {
+                urlMappingModal.style.display = 'none';
+            });
+        }
+    }
+
+    if (addUrlMappingBtn) {
+        addUrlMappingBtn.addEventListener('click', () => {
+            if (urlMappingList) {
+                urlMappingList.appendChild(createUrlMappingRow());
+            }
+        });
+    }
+
+    if (applyUrlMappingBulkBtn) {
+        applyUrlMappingBulkBtn.addEventListener('click', () => {
+            if (!urlMappingList || !urlMappingBulkInput) return;
+            const text = urlMappingBulkInput.value || '';
+            const entries = parseBulkOverrides(text);
+            if (entries.length === 0) {
+                alert('No valid overrides found.');
+                return;
+            }
+
+            const rowMap = new Map();
+            urlMappingList.querySelectorAll('.url-mapping-row').forEach(row => {
+                const fromInput = row.querySelector('.url-mapping-from');
+                if (fromInput && fromInput.value.trim()) {
+                    rowMap.set(fromInput.value.trim(), row);
+                }
+            });
+
+            entries.forEach(({ from, to }) => {
+                const existingRow = rowMap.get(from);
+                if (existingRow) {
+                    const toInput = existingRow.querySelector('.url-mapping-to');
+                    if (toInput) toInput.value = to;
+                } else {
+                    const newRow = createUrlMappingRow({ from, to });
+                    urlMappingList.appendChild(newRow);
+                    rowMap.set(from, newRow);
+                }
+            });
+
+            urlMappingBulkInput.value = '';
+        });
+    }
+
+    if (saveUrlMappingBtn && urlMappingModal) {
+        saveUrlMappingBtn.addEventListener('click', () => {
+            if (!urlMappingList) return;
+            const rows = Array.from(urlMappingList.querySelectorAll('.url-mapping-row'));
+            const mappings = rows.map(row => {
+                const fromInput = row.querySelector('.url-mapping-from');
+                const toInput = row.querySelector('.url-mapping-to');
+                return {
+                    from: fromInput ? fromInput.value.trim() : '',
+                    to: toInput ? toInput.value.trim() : ''
+                };
+            });
+
+            if (rows.length === 0 || mappings.some(mapping => !mapping.from || !mapping.to)) {
+                alert('Both fields are required for each route override.');
+                return;
+            }
+
+            saveUrlMappings(mappings);
+            alert('Route overrides saved.');
+            urlMappingModal.style.display = 'none';
+        });
+    }
+
+    function parseBulkOverrides(text) {
+        return text
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .map(line => {
+                const separator = '=>';
+                const separatorIndex = line.indexOf(separator);
+                if (separatorIndex === -1) return null;
+                const from = line.slice(0, separatorIndex).trim();
+                const to = line.slice(separatorIndex + separator.length).trim();
+                if (!from || !to) return null;
+                return { from, to };
+            })
+            .filter(Boolean);
     }
 
     // History Navigation

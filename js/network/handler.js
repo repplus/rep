@@ -4,6 +4,7 @@ import { elements } from '../ui/main-ui.js';
 import { events, EVENT_NAMES } from '../core/events.js';
 import { parseRequest } from './capture.js';
 import { sendRequest } from './request-sender.js';
+import { applyUrlMappings, getUrlMappings } from './url-mapping.js';
 import { formatRawResponse, getStatusClass } from './response-parser.js';
 import { formatBytes } from '../core/utils/format.js';
 import { renderDiff } from '../core/utils/misc.js';
@@ -12,7 +13,7 @@ import { generateHexView } from '../ui/hex-view.js'
 import { generateJsonView } from '../ui/json-view.js'
 import { saveEditorState } from '../ui/request-editor.js';
 
-export async function handleSendRequest() {
+export async function handleSendRequest({ useUrlMapping = false } = {}) {
     const rawContent = elements.rawRequestInput.innerText;
     const useHttps = elements.useHttpsCheckbox.checked;
 
@@ -30,13 +31,27 @@ export async function handleSendRequest() {
 
     try {
         const { url, options, method, filteredHeaders, bodyText } = parseRequest(rawContent, useHttps);
+        let targetUrl = url;
+
+        if (useUrlMapping) {
+            const mappings = getUrlMappings();
+            if (mappings.length === 0) {
+                alert('No route overrides configured. Add one in Route Override.');
+                return;
+            }
+            targetUrl = applyUrlMappings(url, mappings);
+            if (targetUrl === url) {
+                alert('No route override matched this request.');
+                return;
+            }
+        }
 
         elements.resStatus.textContent = 'Sending...';
         elements.resStatus.className = 'status-badge';
 
-        console.log('Sending request to:', url);
+        console.log('Sending request to:', targetUrl);
 
-        const result = await sendRequest(url, options);
+        const result = await sendRequest(targetUrl, options);
 
         elements.resTime.textContent = `${result.duration}ms`;
         elements.resSize.textContent = formatBytes(result.size);
@@ -115,7 +130,7 @@ export async function handleSendRequest() {
                             origins: ['<all_urls>']
                         }, (granted) => {
                             if (granted) {
-                                handleSendRequest();
+                                handleSendRequest({ useUrlMapping });
                             } else {
                                 elements.rawResponseDisplay.innerHTML += '<p style="color: var(--error-color); margin-top: 10px;">Permission denied.</p>';
                             }

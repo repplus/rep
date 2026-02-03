@@ -16,6 +16,7 @@ export function initUI() {
     elements.rawRequestInput = document.getElementById('raw-request-input');
     elements.useHttpsCheckbox = document.getElementById('use-https');
     elements.sendBtn = document.getElementById('send-btn');
+    elements.sendBtnLocal = document.getElementById('send-btn-local');
     elements.rawResponseDisplay = document.getElementById('raw-response-display');
     elements.rawResponseText = document.getElementById('raw-response-text');
     elements.hexResponseDisplay = document.getElementById('res-hex-display');

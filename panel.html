@@ -87,6 +87,12 @@
                                 </svg>
                                 <span>Settings</span>
                             </button>
+                            <button id="url-mapping-btn" class="more-menu-item">
+                                <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path d="M7.5 12a4.5 4.5 0 0 1 4.5-4.5h3v-2h-3a6.5 6.5 0 1 0 0 13h3v-2h-3A4.5 4.5 0 0 1 7.5 12zm6-4.5h-3v2h3a4.5 4.5 0 1 1 0 9h-3v2h3a6.5 6.5 0 0 0 0-13z" fill="currentColor" />
+                                </svg>
+                                <span>Route Override</span>
+                            </button>
                             <button id="import-btn" class="more-menu-item">
                                 <svg viewBox="0 0 24 24" width="14" height="14">
                                     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor" />
@@ -268,6 +274,7 @@
                                 </svg>
                             </button>
                             <button id="send-btn" class="primary-btn">Send</button>
+                            <button id="send-btn-local" class="secondary-btn send-btn-local" data-tooltip="Send with route override" title="Send with route override">Send-Override</button>
                         </div>
                     </div>
                     <div class="pane-tabs">
@@ -711,6 +718,31 @@
             </div>
             <div class="modal-footer">
                 <button id="save-settings-btn" class="primary-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- URL Mapping Modal -->
+    <div id="url-mapping-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Route Override</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Replace URL prefixes when sending locally</label>
+                    <div id="url-mapping-list" class="url-mapping-list"></div>
+                </div>
+                <button id="add-url-mapping-btn" class="secondary-btn" type="button">Add Override</button>
+                <div class="form-group">
+                    <label>Paste overrides (key => value per line)</label>
+                    <textarea id="url-mapping-bulk-input" class="form-control" rows="4" placeholder="https://api.example.com => http://localhost:9000"></textarea>
+                    <button id="apply-url-mapping-bulk-btn" class="secondary-btn" type="button">Apply</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-url-mapping-btn" class="primary-btn">Save</button>
             </div>
         </div>
     </div>

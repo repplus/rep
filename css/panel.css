@@ -1410,6 +1410,37 @@ body.theme-transitioning img {
     box-sizing: border-box;
 }
 
+.url-mapping-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.url-mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.url-mapping-row .form-control {
+    width: auto;
+    flex: 1;
+}
+
+.url-mapping-arrow {
+    color: var(--text-color);
+    opacity: 0.6;
+}
+
+.url-mapping-remove {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .form-row {
     display: flex;
     gap: 10px;
@@ -1708,11 +1739,13 @@ tr.selected {
 }
 
 /* Custom Tooltip */
-.icon-btn[data-tooltip] {
+.icon-btn[data-tooltip],
+.secondary-btn[data-tooltip] {
     position: relative;
 }
 
-.icon-btn[data-tooltip]:hover::after {
+.icon-btn[data-tooltip]:hover::after,
+.secondary-btn[data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
     bottom: 100%;
@@ -2174,6 +2207,10 @@ pre {
     cursor: pointer;
     margin: 5px;
     align-self: flex-start;
+}
+
+.send-btn-local {
+    margin-left: 8px;
 }
 
 .status-badge {
@@ -5316,4 +5353,3 @@ pre {
         transform: translateX(0);
     }
 }
-
