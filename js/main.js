@@ -275,6 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
             urlMappingModal.style.display = 'block';
         });
     }
+    
+    if (urlMappingModal) {
+        const urlMappingCloseBtn = urlMappingModal.querySelector('.close-modal');
+        if (urlMappingCloseBtn) {
+            urlMappingCloseBtn.addEventListener('click', () => {
+                urlMappingModal.style.display = 'none';
+            });
+        }
+    }
 
     if (addUrlMappingBtn) {
         addUrlMappingBtn.addEventListener('click', () => {
