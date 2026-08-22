@@ -1,5 +1,6 @@
 // AI Explanation Module - Request explanation functionality
 import { getAISettings, streamExplanation } from './core.js';
+import { renderMarkdown } from '../../core/utils/dom.js';
 
 /**
  * Handles AI explanation request
@@ -11,15 +12,19 @@ import { getAISettings, streamExplanation } from './core.js';
  */
 export async function handleAIExplanation(promptPrefix, content, explanationModal, explanationContent, settingsModal, onTextUpdate) {
     const { provider, apiKey, model } = getAISettings();
-    if (!apiKey || (provider === 'local' && !model)) {
+    if (!apiKey || (['local', 'opencode'].includes(provider) && !model)) {
         let providerName = 'Anthropic';
         if (provider === 'gemini') {
             providerName = 'Gemini';
+        } else if (provider === 'openai') {
+            providerName = 'OpenAI Codex';
         } else if (provider === 'local') {
             providerName = 'Local Model';
+        } else if (provider === 'opencode') {
+            providerName = 'OpenCode';
         }
-        const message = provider === 'local' 
-            ? 'Please configure your Local Model URL and Model Name in Settings first.'
+        const message = ['local', 'opencode'].includes(provider)
+            ? `Please configure your ${providerName} server and model in Settings first.`
             : `Please configure your ${providerName} API Key in Settings first.`;
         alert(message);
         settingsModal.style.display = 'block';
@@ -38,14 +43,14 @@ export async function handleAIExplanation(promptPrefix, content, explanationModa
     try {
         await streamExplanation(apiKey, model, promptPrefix + "\n\n" + content, (text) => {
             if (onTextUpdate) onTextUpdate(text);
-            if (typeof marked !== 'undefined') {
-                explanationContent.innerHTML = marked.parse(text);
-            } else {
-                explanationContent.innerHTML = `<pre style="white-space: pre-wrap; font-family: sans-serif;">${text}</pre>`;
-            }
+            explanationContent.innerHTML = renderMarkdown(text);
         }, provider);
     } catch (error) {
-        explanationContent.innerHTML = `<div style="color: var(--error-color); padding: 20px;">Error: ${error.message}</div>`;
+        explanationContent.innerHTML = '';
+        const errorElement = document.createElement('div');
+        errorElement.style.color = 'var(--error-color)';
+        errorElement.style.padding = '20px';
+        errorElement.textContent = `Error: ${error.message}`;
+        explanationContent.appendChild(errorElement);
     }
 }
-

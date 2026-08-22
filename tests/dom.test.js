@@ -1,6 +1,6 @@
 // Test for dom.js utility functions
 import { describe, it, expect } from 'vitest';
-import { escapeHtml, arrayToCSV } from '../js/core/utils/dom.js';
+import { escapeHtml, arrayToCSV, renderMarkdown, sanitizeHtml } from '../js/core/utils/dom.js';
 
 // Note: With vitest environment: 'jsdom', document and window are automatically available
 
@@ -30,6 +30,22 @@ describe('escapeHtml', () => {
   it('should escape multiple special characters', () => {
     // textContent escapes <, >, and & but preserves quotes
     expect(escapeHtml('<div class="test">&</div>')).toBe('&lt;div class="test"&gt;&amp;&lt;/div&gt;');
+  });
+});
+
+describe('safe markdown rendering', () => {
+  it('removes active content and remote image loads', () => {
+    const html = sanitizeHtml('<p>Safe</p><img src="https://attacker.test/leak"><script>alert(1)</script>');
+
+    expect(html).toBe('<p>Safe</p>alert(1)');
+  });
+
+  it('removes link destinations while preserving text', () => {
+    expect(sanitizeHtml('<a href="https://attacker.test" onclick="alert(1)">details</a>')).toBe('<a>details</a>');
+  });
+
+  it('escapes plain text when marked is unavailable', () => {
+    expect(renderMarkdown('<img src=x>', null)).toContain('&lt;img src=x&gt;');
   });
 });
 

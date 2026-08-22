@@ -1,5 +1,8 @@
 // AI Core Module - Generic LLM wrapper and provider abstraction
 
+import { streamFromOpenCode } from './opencode.js';
+import { streamFromOpenAI } from './openai.js';
+
 export function getAISettings() {
     const provider = localStorage.getItem('ai_provider') || 'anthropic';
 
@@ -16,6 +19,26 @@ export function getAISettings() {
             provider: 'local',
             apiKey: localStorage.getItem('local_api_url') || 'http://localhost:11434/api/generate',
             model: localStorage.getItem('local_model') || ''
+        };
+    }
+
+    if (provider === 'openai') {
+        return {
+            provider: 'openai',
+            apiKey: localStorage.getItem('openai_api_key') || '',
+            model: localStorage.getItem('openai_model') || 'gpt-5.3-codex'
+        };
+    }
+
+    if (provider === 'opencode') {
+        const baseUrl = localStorage.getItem('opencode_base_url') || 'http://127.0.0.1:4096';
+        return {
+            provider: 'opencode',
+            apiKey: baseUrl,
+            baseUrl,
+            username: localStorage.getItem('opencode_username') || 'opencode',
+            password: localStorage.getItem('opencode_password') || '',
+            model: localStorage.getItem('opencode_model') || ''
         };
     }
 
@@ -105,7 +128,7 @@ export async function fetchGeminiModels(apiKey) {
     }
 }
 
-export function saveAISettings(provider, apiKey, model) {
+export function saveAISettings(provider, apiKey, model, options = {}) {
     localStorage.setItem('ai_provider', provider);
 
     if (provider === 'gemini') {
@@ -114,6 +137,14 @@ export function saveAISettings(provider, apiKey, model) {
     } else if (provider === 'local') {
         localStorage.setItem('local_api_url', apiKey); // apiKey is actually the URL for local
         localStorage.setItem('local_model', model);
+    } else if (provider === 'opencode') {
+        localStorage.setItem('opencode_base_url', apiKey);
+        localStorage.setItem('opencode_username', options.username || 'opencode');
+        localStorage.setItem('opencode_password', options.password || '');
+        localStorage.setItem('opencode_model', model);
+    } else if (provider === 'openai') {
+        localStorage.setItem('openai_api_key', apiKey);
+        localStorage.setItem('openai_model', model);
     } else {
         localStorage.setItem('anthropic_api_key', apiKey);
         localStorage.setItem('anthropic_model', model);
@@ -121,21 +152,47 @@ export function saveAISettings(provider, apiKey, model) {
 }
 
 export async function streamExplanation(apiKey, model, request, onUpdate, provider = 'anthropic') {
+    if (provider === 'openai') {
+        return streamFromOpenAI(apiKey, model, [
+            {
+                role: 'system',
+                content: 'You are an expert security researcher and web developer. Explain the following HTTP request in detail, highlighting interesting parameters, potential security implications, and what this request is likely doing. Be concise but thorough.'
+            },
+            { role: 'user', content: `Explain this HTTP request:\n\n${request}` }
+        ], onUpdate);
+    }
     if (provider === 'gemini') {
         return streamExplanationFromGemini(apiKey, model, request, onUpdate);
     }
     if (provider === 'local') {
         return streamExplanationFromLocal(apiKey, model, request, onUpdate);
     }
+    if (provider === 'opencode') {
+        const systemPrompt = "You are an expert security researcher and web developer. Explain the following HTTP request in detail, highlighting interesting parameters, potential security implications, and what this request is likely doing. Be concise but thorough.";
+        return streamFromOpenCode(getAISettings(), model, systemPrompt, request, onUpdate, {
+            sessionTitle: 'rep+ request explanation'
+        });
+    }
     return streamExplanationFromClaude(apiKey, model, request, onUpdate);
 }
 
 export async function streamExplanationWithSystem(apiKey, model, systemPrompt, userPrompt, onUpdate, provider = 'anthropic') {
+    if (provider === 'openai') {
+        return streamFromOpenAI(apiKey, model, [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ], onUpdate);
+    }
     if (provider === 'gemini') {
         return streamExplanationFromGeminiWithSystem(apiKey, model, systemPrompt, userPrompt, onUpdate);
     }
     if (provider === 'local') {
         return streamExplanationFromLocalWithSystem(apiKey, model, systemPrompt, userPrompt, onUpdate);
+    }
+    if (provider === 'opencode') {
+        return streamFromOpenCode(getAISettings(), model, systemPrompt, userPrompt, onUpdate, {
+            sessionTitle: 'rep+ security analysis'
+        });
     }
     return streamExplanationFromClaudeWithSystem(apiKey, model, systemPrompt, userPrompt, onUpdate);
 }
@@ -146,14 +203,31 @@ export async function streamExplanationWithSystem(apiKey, model, systemPrompt, u
  * @param {string} model - Model name
  * @param {Array} messages - Array of { role: 'system'|'user'|'assistant', content: string }
  * @param {Function} onUpdate - Callback for streaming updates
- * @param {string} provider - Provider name ('anthropic', 'gemini', 'local')
+ * @param {string} provider - Provider name ('anthropic', 'gemini', 'local', 'openai', 'opencode')
+ * @param {Object} options - Provider-specific options
  */
-export async function streamChatWithMessages(apiKey, model, messages, onUpdate, provider = 'anthropic') {
+export async function streamChatWithMessages(apiKey, model, messages, onUpdate, provider = 'anthropic', options = {}) {
+    if (provider === 'openai') {
+        return streamFromOpenAI(apiKey, model, messages, onUpdate, undefined, options);
+    }
     if (provider === 'gemini') {
         return streamChatFromGeminiWithMessages(apiKey, model, messages, onUpdate);
     }
     if (provider === 'local') {
         return streamChatFromLocalWithMessages(apiKey, model, messages, onUpdate);
+    }
+    if (provider === 'opencode') {
+        const systemMessage = messages.find(message => message.role === 'system');
+        const userMessage = [...messages].reverse().find(message => message.role === 'user');
+        if (!userMessage) throw new Error('No user message was provided to OpenCode.');
+        return streamFromOpenCode(
+            getAISettings(),
+            model,
+            systemMessage?.content || '',
+            userMessage.content,
+            onUpdate,
+            { ...options, messages }
+        );
     }
     return streamChatFromClaudeWithMessages(apiKey, model, messages, onUpdate);
 }

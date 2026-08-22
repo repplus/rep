@@ -98,6 +98,7 @@ export const requestActions = {
         if (originalLength === 0) return 0;
         
         const uniqueRequests = [];
+        const removedRequests = [];
         const seen = new Set();
         
         for (const request of state.requests) {
@@ -132,6 +133,7 @@ export const requestActions = {
                 uniqueRequests.push(request);
             } else {
                 console.log('Duplicate found:', signature.substring(0, 100) + '...');
+                removedRequests.push(request);
             }
         }
         
@@ -170,6 +172,7 @@ export const requestActions = {
             
             // Also trigger filterRequests to handle grouping and filtering
             events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
+            events.emit(EVENT_NAMES.REQUESTS_REMOVED, removedRequests);
         }
         
         return removedCount;
@@ -220,6 +223,7 @@ export const requestActions = {
      * Clear all requests and reset related state
      */
     clearAll() {
+        const removedRequests = [...state.requests];
         state.requests = [];
         state.selectedRequest = null;
         state.requestHistory = [];
@@ -232,6 +236,7 @@ export const requestActions = {
         state.domainsWithAttackSurface.clear();
         
         // Emit events
+        events.emit(EVENT_NAMES.REQUESTS_REMOVED, removedRequests);
         events.emit(EVENT_NAMES.STATE_REQUESTS_CLEARED);
         events.emit(EVENT_NAMES.UI_CLEAR_ALL);
     },
@@ -332,6 +337,7 @@ export const requestActions = {
             }
             
             // Emit event
+            events.emit(EVENT_NAMES.REQUESTS_REMOVED, [request]);
             events.emit(EVENT_NAMES.UI_UPDATE_REQUEST_LIST);
         }
     },
@@ -347,6 +353,7 @@ export const requestActions = {
         
         // Find requests to remove
         const requestsToRemove = [];
+        const removedRequests = [];
         state.requests.forEach((req, index) => {
             const reqPageHostname = getHostname(req.pageUrl || req.request.url);
             const reqHostname = getHostname(req.request.url);
@@ -360,6 +367,7 @@ export const requestActions = {
             
             if (shouldRemove) {
                 requestsToRemove.push(index);
+                removedRequests.push(req);
             }
         });
         
@@ -411,12 +419,12 @@ export const requestActions = {
         });
         
         // Clear selected request if it was deleted
-        const selectedIndex = state.requests.indexOf(state.selectedRequest);
-        if (state.selectedRequest && (selectedIndex === -1 || requestsToRemove.includes(selectedIndex))) {
+        if (state.selectedRequest && removedRequests.includes(state.selectedRequest)) {
             state.selectedRequest = null;
         }
         
         // Emit events
+        events.emit(EVENT_NAMES.REQUESTS_REMOVED, removedRequests);
         events.emit(EVENT_NAMES.REQUEST_FILTERED);
         if (removedFromQueue > 0) {
             events.emit('block-queue:updated');
@@ -727,4 +735,3 @@ export const actions = {
     diff: diffActions,
     attackSurface: attackSurfaceActions
 };
-

@@ -6,16 +6,20 @@ import { formatRawResponse } from '../../network/response-parser.js';
 import { handleSendRequest } from '../../network/handler.js';
 import { highlightHTTP } from '../../core/utils/network.js';
 import { elements } from '../../ui/main-ui.js';
+import { resetAllOpenCodeConversations, resetOpenCodeConversation } from '../ai/opencode.js';
+import { renderMarkdown } from '../../core/utils/dom.js';
 
 let chatHistory = [];
 let isStreaming = false;
 let lastSelectedRequestIndex = -1; // Track last selected request to prevent duplicate messages
+let lastSelectedRequest = null;
 let responseHistory = []; // Track all responses for the current request (in chronological order)
 let lastTrackedResponse = null; // Track the last response we've seen to detect new ones
 let chatTokenEstimateElement = null; // Reference to token estimate element
+let activeChat = null;
 
 // Per-request chat history storage
-let chatHistoryByRequest = new Map(); // Map<requestIndex, chatHistory[]>
+let chatHistoryByRequest = new Map(); // Map<request, chatHistory[]>
 let referencedRequests = new Set(); // Set of request indices to include in context
 
 // Token optimization constants
@@ -23,6 +27,12 @@ const MAX_RESPONSE_HISTORY = 2; // Only keep last 2 responses (original + 1 rese
 const MAX_RESPONSE_TOKENS = 1500; // ~6KB of text (roughly 1500 tokens)
 const MAX_CHAT_HISTORY = 15; // Keep last 15 messages (reduced from 20)
 const TOKEN_ESTIMATE_CHARS = 4; // Rough estimate: 1 token ≈ 4 characters
+
+function cancelActiveChat(request = null) {
+    if (!activeChat || (request && activeChat.request !== request)) return;
+    activeChat.controller.abort();
+    activeChat = null;
+}
 
 const SYSTEM_PROMPT = `You are a helpful assistant for working with HTTP requests and responses. You have access to the currently selected request and response, which will be provided in the conversation context.
 
@@ -131,7 +141,7 @@ function buildUserPrompt(userMessage, request) {
                 if (reqIndex < 0 || reqIndex >= state.requests.length) continue;
                 
                 const prevReq = state.requests[reqIndex];
-                const prevChat = chatHistoryByRequest.get(reqIndex);
+                const prevChat = chatHistoryByRequest.get(prevReq);
                 
                 if (prevReq && prevReq.request) {
                     const method = prevReq.request.method || 'GET';
@@ -323,23 +333,24 @@ function updateTokenEstimate(tokenCount) {
     }
 }
 
-function addMessageToHistory(role, content) {
-    chatHistory.push({ role, content, timestamp: Date.now() });
-    
-    // Keep last N messages to avoid token limits
-    if (chatHistory.length > MAX_CHAT_HISTORY) {
-        chatHistory = chatHistory.slice(-MAX_CHAT_HISTORY);
+function addMessageToHistory(role, content, request = state.selectedRequest) {
+    const message = { role, content, timestamp: Date.now() };
+
+    if (request === state.selectedRequest) {
+        chatHistory.push(message);
+        if (chatHistory.length > MAX_CHAT_HISTORY) {
+            chatHistory = chatHistory.slice(-MAX_CHAT_HISTORY);
+        }
     }
     
     // Also save to per-request history
-    if (state.selectedRequest) {
-        const requestIndex = state.requests.indexOf(state.selectedRequest);
-        if (requestIndex !== -1) {
-            if (!chatHistoryByRequest.has(requestIndex)) {
-                chatHistoryByRequest.set(requestIndex, []);
+    if (request) {
+        if (state.requests.includes(request)) {
+            if (!chatHistoryByRequest.has(request)) {
+                chatHistoryByRequest.set(request, []);
             }
-            const requestHistory = chatHistoryByRequest.get(requestIndex);
-            requestHistory.push({ role, content, timestamp: Date.now() });
+            const requestHistory = chatHistoryByRequest.get(request);
+            requestHistory.push(message);
             
             // Limit per-request history too
             if (requestHistory.length > MAX_CHAT_HISTORY) {
@@ -354,14 +365,14 @@ function clearChatHistory() {
     // Don't clear per-request history, just current session
 }
 
-function loadChatHistoryForRequest(requestIndex) {
-    if (requestIndex === -1 || !chatHistoryByRequest.has(requestIndex)) {
+function loadChatHistoryForRequest(request) {
+    if (!request || !chatHistoryByRequest.has(request)) {
         chatHistory = [];
         return;
     }
     
     // Load the stored history for this request
-    const storedHistory = chatHistoryByRequest.get(requestIndex);
+    const storedHistory = chatHistoryByRequest.get(request);
     chatHistory = storedHistory.map(msg => ({ ...msg })); // Deep copy
 }
 
@@ -423,12 +434,16 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
     }
     
     const settings = getAISettings();
-    if (!settings.apiKey) {
-        onError('AI API key not configured. Please configure it in settings.');
+    if (!settings.apiKey || (['local', 'opencode'].includes(settings.provider) && !settings.model)) {
+        onError(settings.provider === 'opencode'
+            ? 'OpenCode is not configured. Test the connection and select a model in settings.'
+            : 'AI API key not configured. Please configure it in settings.');
         return;
     }
     
     isStreaming = true;
+    const controller = new AbortController();
+    activeChat = { request, controller };
     
     try {
         // Build the full user prompt with request context
@@ -452,11 +467,13 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
         updateTokenEstimate(totalTokens);
         
         // Add user message to history (for next turn) - use original message, not full prompt
-        addMessageToHistory('user', userMessage);
+        addMessageToHistory('user', userMessage, request);
         
         let assistantResponse = '';
         
         // Use proper message array for rolling context
+        const requestUrl = new URL(request.request.url);
+        const sessionTitle = `rep+ ${request.request.method || 'GET'} ${requestUrl.hostname}${requestUrl.pathname}`.slice(0, 120);
         await streamChatWithMessages(
             settings.apiKey,
             settings.model,
@@ -470,7 +487,7 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
                             // Prepare markdown for streaming (handle incomplete code blocks)
                             const preparedText = prepareMarkdownForStreaming(text);
                             // Always parse markdown during streaming to show rendered content
-                            const parsed = window.marked.parse(preparedText);
+                            const parsed = renderMarkdown(preparedText, window.marked);
                             if (parsed && typeof parsed === 'string') {
                                 loadingElement.innerHTML = parsed;
                                 // Apply syntax highlighting to code blocks if highlight.js is available
@@ -487,7 +504,7 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
                                 }
                             } else {
                                 // If parsing returns something unexpected, try direct parse
-                                loadingElement.innerHTML = window.marked.parse(text);
+                                loadingElement.innerHTML = renderMarkdown(text, window.marked);
                                 if (window.hljs) {
                                     loadingElement.querySelectorAll('pre code').forEach((block) => {
                                         if (!block.classList.contains('hljs')) {
@@ -503,7 +520,7 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
                         } catch (e) {
                             // If parsing fails, try without preparation
                             try {
-                                loadingElement.innerHTML = window.marked.parse(text);
+                                loadingElement.innerHTML = renderMarkdown(text, window.marked);
                                 if (window.hljs) {
                                     loadingElement.querySelectorAll('pre code').forEach((block) => {
                                         if (!block.classList.contains('hljs')) {
@@ -529,17 +546,22 @@ async function sendChatMessage(userMessage, loadingElement, onUpdate, onComplete
                 }
                 onUpdate(text);
             },
-            settings.provider
+            settings.provider,
+            { conversationKey: request, sessionTitle, signal: controller.signal }
         );
+
+        if (controller.signal.aborted || activeChat?.controller !== controller) return;
         
         // Add assistant response to history
-        addMessageToHistory('assistant', assistantResponse);
+        addMessageToHistory('assistant', assistantResponse, request);
         
         onComplete(assistantResponse);
     } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('Chat error:', error);
         onError(error.message || 'Failed to send message. Please check your API key and try again.');
     } finally {
+        if (activeChat?.controller === controller) activeChat = null;
         isStreaming = false;
     }
 }
@@ -812,7 +834,7 @@ export function setupLLMChat(elements) {
                     }
                     if (window.marked) {
                         try {
-                            loadingElement.innerHTML = window.marked.parse(fullText);
+                            loadingElement.innerHTML = renderMarkdown(fullText, window.marked);
                             // Add copy buttons to code blocks after markdown is parsed (final update)
                             addCopyButtonsToCodeBlocks(loadingElement);
                         } catch (e) {
@@ -982,9 +1004,12 @@ export function setupLLMChat(elements) {
     // Clear chat
     if (chatClearBtn) {
         chatClearBtn.addEventListener('click', () => {
-            // Save current chat history before clearing
-            if (state.selectedRequest && lastSelectedRequestIndex !== -1) {
-                chatHistoryByRequest.set(lastSelectedRequestIndex, [...chatHistory]);
+            if (state.selectedRequest) {
+                cancelActiveChat(state.selectedRequest);
+                chatHistoryByRequest.delete(state.selectedRequest);
+                resetOpenCodeConversation(state.selectedRequest).catch(error => {
+                    console.warn('Failed to clear OpenCode session:', error);
+                });
             }
             
             clearChatHistory();
@@ -1058,9 +1083,9 @@ export function setupLLMChat(elements) {
         // Get all requests that have chat history (excluding current)
         const availableRequests = [];
         for (let i = 0; i < state.requests.length; i++) {
-            if (i !== currentIndex && chatHistoryByRequest.has(i)) {
-                const req = state.requests[i];
-                const history = chatHistoryByRequest.get(i);
+            const req = state.requests[i];
+            if (i !== currentIndex && chatHistoryByRequest.has(req)) {
+                const history = chatHistoryByRequest.get(req);
                 if (req && req.request && history && history.length > 0) {
                     const method = req.request.method || 'GET';
                     const url = new URL(req.request.url);
@@ -1189,24 +1214,29 @@ export function setupLLMChat(elements) {
         
         // Update request badge in header
         updateRequestBadge();
+        const currentRequest = data && typeof data === 'object' && 'request' in data
+            ? data.request
+            : (state.requests[currentIndex] || state.selectedRequest);
         
         // Check if request actually changed
-        if (currentIndex !== -1 && currentIndex !== lastSelectedRequestIndex) {
-            const wasChanged = lastSelectedRequestIndex !== -1; // Had a previous selection
+        if (currentIndex !== -1 && currentRequest && currentRequest !== lastSelectedRequest) {
+            const wasChanged = lastSelectedRequest !== null;
             
             // Save current chat history before switching
-            if (wasChanged && lastSelectedRequestIndex !== -1) {
-                chatHistoryByRequest.set(lastSelectedRequestIndex, [...chatHistory]);
+            if (wasChanged) {
+                chatHistoryByRequest.set(lastSelectedRequest, [...chatHistory]);
             }
             
             lastSelectedRequestIndex = currentIndex;
+            lastSelectedRequest = currentRequest;
             
             // Clear response history when switching to a different request
             responseHistory = [];
             lastTrackedResponse = null;
             
             // Load chat history for the new request (or start fresh)
-            loadChatHistoryForRequest(currentIndex);
+            loadChatHistoryForRequest(currentRequest);
+            renderChatHistory();
             
             // Clear referenced requests when switching
             referencedRequests.clear();
@@ -1227,6 +1257,50 @@ export function setupLLMChat(elements) {
             lastSelectedRequestIndex = currentIndex;
         }
     });
+
+    events.on(EVENT_NAMES.REQUESTS_REMOVED, removedRequests => {
+        (removedRequests || []).forEach(request => {
+            cancelActiveChat(request);
+            chatHistoryByRequest.delete(request);
+            resetOpenCodeConversation(request).catch(error => {
+                console.warn('Failed to delete OpenCode session for removed request:', error);
+            });
+        });
+        if ((removedRequests || []).includes(lastSelectedRequest)) {
+            lastSelectedRequest = null;
+            lastSelectedRequestIndex = -1;
+            chatHistory = [];
+            if (chatMessages) {
+                chatMessages.innerHTML = '';
+                addSystemMessage('Select a request to start chatting. I can help you understand, modify, or debug HTTP requests and responses.');
+            }
+            updateRequestBadge();
+        }
+        referencedRequests.clear();
+        updateReferenceUI();
+        updateRequestBadge();
+    });
+
+    events.on(EVENT_NAMES.STATE_REQUESTS_CLEARED, () => {
+        cancelActiveChat();
+        chatHistoryByRequest.clear();
+        chatHistory = [];
+        lastSelectedRequest = null;
+        lastSelectedRequestIndex = -1;
+        if (chatMessages) {
+            chatMessages.innerHTML = '';
+            addSystemMessage('Select a request to start chatting. I can help you understand, modify, or debug HTTP requests and responses.');
+        }
+        updateRequestBadge();
+        resetAllOpenCodeConversations().catch(error => {
+            console.warn('Failed to clear OpenCode sessions:', error);
+        });
+    });
+
+    window.addEventListener('pagehide', () => {
+        cancelActiveChat();
+        resetAllOpenCodeConversations().catch(() => {});
+    });
     
     // Initial badge update
     updateRequestBadge();
@@ -1241,6 +1315,26 @@ export function setupLLMChat(elements) {
         messageDiv.textContent = text;
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function renderChatHistory() {
+        if (!chatMessages) return;
+        chatMessages.innerHTML = '';
+
+        if (!state.selectedRequest) {
+            addSystemMessage('Select a request to start chatting. I can help you understand, modify, or debug HTTP requests and responses.');
+            return;
+        }
+        if (chatHistory.length === 0) {
+            addSystemMessage('How can I help you with this request?');
+            return;
+        }
+
+        chatHistory.forEach(message => {
+            if (message.role === 'user') addUserMessage(message.content);
+            else if (message.role === 'assistant') addAssistantMessage(message.content);
+            else addSystemMessage(message.content);
+        });
     }
     
     // Parse LLM response for modification suggestions
@@ -1811,7 +1905,7 @@ export function setupLLMChat(elements) {
         // Support markdown rendering if marked is available
         if (window.marked && text && !isLoading) {
             try {
-                messageDiv.innerHTML = window.marked.parse(text);
+                messageDiv.innerHTML = renderMarkdown(text, window.marked);
                 // Add copy buttons to code blocks after markdown is parsed
                 addCopyButtonsToCodeBlocks(messageDiv);
             } catch (e) {
@@ -1849,4 +1943,3 @@ export function setupLLMChat(elements) {
         }
     }
 }
-

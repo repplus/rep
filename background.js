@@ -1,15 +1,271 @@
 // Background service worker
 const ports = new Set();
 const requestMap = new Map();
+const opencodeRequestsByPort = new WeakMap();
+const opencodeSessionsByPort = new WeakMap();
+const OPENCODE_SESSIONS_STORAGE_KEY = 'opencodeTrackedSessions';
+const OPENCODE_CLEANUP_TIMEOUT_MS = 10000;
+let storedSessionUpdate;
+
+function getOpenCodeTarget(baseUrl, path = '/') {
+    const base = new URL(baseUrl);
+    const allowedHosts = new Set(['localhost', '127.0.0.1']);
+
+    if (!['http:', 'https:'].includes(base.protocol) || !allowedHosts.has(base.hostname)) {
+        throw new Error('OpenCode URL must use localhost or 127.0.0.1.');
+    }
+    if (base.username || base.password) {
+        throw new Error('Put OpenCode credentials in the username and password fields, not the URL.');
+    }
+
+    const target = new URL(path, `${base.origin}/`);
+    if (target.origin !== base.origin) {
+        throw new Error('OpenCode request must stay on the configured server origin.');
+    }
+    return target;
+}
+
+function encodeBasicAuth(username, password) {
+    const bytes = new TextEncoder().encode(`${username}:${password}`);
+    let binary = '';
+    bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+    return btoa(binary);
+}
+
+function getOpenCodeHeaders(msg, stream = false) {
+    const headers = {
+        'Accept': stream ? 'text/event-stream' : 'application/json'
+    };
+    if (msg.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (msg.password) {
+        headers.Authorization = `Basic ${encodeBasicAuth(msg.username || 'opencode', msg.password)}`;
+    }
+    return headers;
+}
+
+async function deleteOpenCodeSessionDirect(settings, sessionId) {
+    const msg = { ...settings };
+    const abortTarget = getOpenCodeTarget(settings.baseUrl, `/session/${encodeURIComponent(sessionId)}/abort`);
+    const deleteTarget = getOpenCodeTarget(settings.baseUrl, `/session/${encodeURIComponent(sessionId)}`);
+
+    try {
+        await fetch(abortTarget.href, {
+            method: 'POST',
+            headers: getOpenCodeHeaders(msg),
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: AbortSignal.timeout(OPENCODE_CLEANUP_TIMEOUT_MS)
+        });
+    } catch (error) {
+        // Deletion below is still attempted if abort fails.
+    }
+
+    const response = await fetch(deleteTarget.href, {
+        method: 'DELETE',
+        headers: getOpenCodeHeaders(msg),
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(OPENCODE_CLEANUP_TIMEOUT_MS)
+    });
+    if (!response.ok && response.status !== 404) {
+        throw new Error(`Failed to delete OpenCode session ${sessionId}`);
+    }
+}
+
+function isOpenCodeSessionActive(sessionId) {
+    for (const port of ports) {
+        if (opencodeSessionsByPort.get(port)?.has(sessionId)) return true;
+    }
+    return false;
+}
+
+async function cleanupStoredOpenCodeSessions() {
+    const data = await chrome.storage.local.get(OPENCODE_SESSIONS_STORAGE_KEY);
+    const sessions = data[OPENCODE_SESSIONS_STORAGE_KEY] || {};
+    const remaining = {};
+
+    await Promise.all(Object.entries(sessions).map(async ([sessionId, settings]) => {
+        if (isOpenCodeSessionActive(sessionId)) {
+            remaining[sessionId] = settings;
+            return;
+        }
+        try {
+            await deleteOpenCodeSessionDirect(settings, sessionId);
+        } catch (error) {
+            console.warn(`Could not clean up OpenCode session ${sessionId}; it will be retried.`, error);
+            remaining[sessionId] = settings;
+        }
+    }));
+
+    if (Object.keys(remaining).length > 0) {
+        await chrome.storage.local.set({ [OPENCODE_SESSIONS_STORAGE_KEY]: remaining });
+    } else {
+        await chrome.storage.local.remove(OPENCODE_SESSIONS_STORAGE_KEY);
+    }
+}
+
+function updateStoredOpenCodeSessions(update) {
+    storedSessionUpdate = storedSessionUpdate.catch(() => {}).then(async () => {
+        const data = await chrome.storage.local.get(OPENCODE_SESSIONS_STORAGE_KEY);
+        const sessions = data[OPENCODE_SESSIONS_STORAGE_KEY] || {};
+        update(sessions);
+        if (Object.keys(sessions).length > 0) {
+            await chrome.storage.local.set({ [OPENCODE_SESSIONS_STORAGE_KEY]: sessions });
+        } else {
+            await chrome.storage.local.remove(OPENCODE_SESSIONS_STORAGE_KEY);
+        }
+    });
+    return storedSessionUpdate;
+}
+
+function persistOpenCodeSession(sessionId, settings) {
+    updateStoredOpenCodeSessions(sessions => {
+        sessions[sessionId] = settings;
+    }).catch(() => {});
+}
+
+function removeStoredOpenCodeSession(sessionId) {
+    return updateStoredOpenCodeSessions(sessions => {
+        delete sessions[sessionId];
+    });
+}
+
+async function getOpenCodeError(response) {
+    const text = await response.text();
+    if (!text.trim()) return `OpenCode request failed with status ${response.status}`;
+
+    try {
+        const data = JSON.parse(text);
+        return data.error?.data?.message || data.error?.message || data.message || text;
+    } catch (error) {
+        return text.length > 300 ? `${text.slice(0, 300)}...` : text;
+    }
+}
+
+async function handleOpenCodeRequest(port, msg) {
+    const requestId = msg.requestId || `opencode-${Date.now()}-${Math.random()}`;
+    const method = (msg.method || 'GET').toUpperCase();
+    if (!['GET', 'POST', 'DELETE'].includes(method)) {
+        port.postMessage({ type: 'opencode-error', requestId, error: `Unsupported OpenCode method: ${method}` });
+        return;
+    }
+
+    let requests = opencodeRequestsByPort.get(port);
+    if (!requests) {
+        requests = new Map();
+        opencodeRequestsByPort.set(port, requests);
+    }
+
+    const controller = new AbortController();
+    requests.set(requestId, controller);
+
+    try {
+        const target = getOpenCodeTarget(msg.baseUrl, msg.path);
+        const response = await fetch(target.href, {
+            method,
+            headers: getOpenCodeHeaders(msg, Boolean(msg.stream)),
+            body: msg.body === undefined ? undefined : JSON.stringify(msg.body),
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: controller.signal
+        });
+
+        if (!response.ok) {
+            throw new Error(await getOpenCodeError(response));
+        }
+
+        if (!msg.stream) {
+            const body = await response.text();
+            port.postMessage({ type: 'opencode-response', requestId, status: response.status, body });
+            return;
+        }
+
+        if (!response.body) {
+            throw new Error('OpenCode returned an empty event stream.');
+        }
+
+        port.postMessage({ type: 'opencode-stream-start', requestId, status: response.status });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            port.postMessage({
+                type: 'opencode-stream-chunk',
+                requestId,
+                chunk: decoder.decode(value, { stream: true })
+            });
+        }
+
+        const finalChunk = decoder.decode();
+        if (finalChunk) {
+            port.postMessage({ type: 'opencode-stream-chunk', requestId, chunk: finalChunk });
+        }
+        port.postMessage({ type: 'opencode-stream-done', requestId });
+    } catch (error) {
+        const message = error.name === 'AbortError' ? 'OpenCode request was cancelled.' : error.message;
+        try {
+            port.postMessage({ type: 'opencode-error', requestId, error: message });
+        } catch (postError) {
+            // The panel disconnected while the request was active.
+        }
+    } finally {
+        requests.delete(requestId);
+    }
+}
+
+function trackOpenCodeSession(port, msg) {
+    // Validate before retaining connection details for disconnect cleanup.
+    getOpenCodeTarget(msg.baseUrl, `/session/${encodeURIComponent(msg.sessionId)}`);
+    let sessions = opencodeSessionsByPort.get(port);
+    if (!sessions) {
+        sessions = new Map();
+        opencodeSessionsByPort.set(port, sessions);
+    }
+    const settings = {
+        baseUrl: msg.baseUrl,
+        username: msg.username || 'opencode',
+        password: msg.password || ''
+    };
+    sessions.set(msg.sessionId, settings);
+    persistOpenCodeSession(msg.sessionId, settings);
+}
+
+function untrackOpenCodeSession(port, sessionId) {
+    opencodeSessionsByPort.get(port)?.delete(sessionId);
+    removeStoredOpenCodeSession(sessionId).catch(() => {});
+}
+
+function cleanupOpenCodePort(port) {
+    const requests = opencodeRequestsByPort.get(port);
+    requests?.forEach(controller => controller.abort());
+    requests?.clear();
+
+    const sessions = opencodeSessionsByPort.get(port);
+    sessions?.forEach((settings, sessionId) => {
+        deleteOpenCodeSessionDirect(settings, sessionId)
+            .then(() => removeStoredOpenCodeSession(sessionId))
+            .catch(() => {});
+    });
+    sessions?.clear();
+}
+
+const staleSessionCleanup = cleanupStoredOpenCodeSessions();
+storedSessionUpdate = staleSessionCleanup;
 
 // Handle connections from DevTools panels
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== "rep-panel") return;
+    storedSessionUpdate = storedSessionUpdate.catch(() => {}).then(cleanupStoredOpenCodeSessions);
     console.log("DevTools panel connected");
     ports.add(port);
 
     port.onDisconnect.addListener(() => {
         console.log("DevTools panel disconnected");
+        cleanupOpenCodePort(port);
         ports.delete(port);
     });
 
@@ -19,6 +275,18 @@ chrome.runtime.onConnect.addListener((port) => {
         if (msg.type === 'ping') {
             console.log('Background: Responding to ping');
             port.postMessage({ type: 'pong' });
+        } else if (msg.type === 'opencode-request') {
+            handleOpenCodeRequest(port, msg);
+        } else if (msg.type === 'opencode-cancel') {
+            opencodeRequestsByPort.get(port)?.get(msg.requestId)?.abort();
+        } else if (msg.type === 'opencode-track-session') {
+            try {
+                trackOpenCodeSession(port, msg);
+            } catch (error) {
+                port.postMessage({ type: 'opencode-error', requestId: msg.requestId, error: error.message });
+            }
+        } else if (msg.type === 'opencode-untrack-session') {
+            untrackOpenCodeSession(port, msg.sessionId);
         } else if (msg.type === 'local-model-request' || msg.type === 'local-model-chat') {
             // Handle local model request via port
             const requestId = msg.requestId || `local-${Date.now()}-${Math.random()}`;

@@ -1,10 +1,12 @@
 // Test for state management functions
-import { describe, it, expect, beforeEach } from 'vitest';
-import { state, addRequest, clearRequests, addToHistory } from '../js/core/state/index.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { state, addRequest, clearRequests, addToHistory, requestActions } from '../js/core/state/index.js';
+import { events, EVENT_NAMES } from '../js/core/events.js';
 
 describe('State Management', () => {
   beforeEach(() => {
     // Reset state before each test
+    events.removeAllListeners();
     clearRequests();
     state.selectedMethods.clear();
     state.starFilterActive = false;
@@ -16,6 +18,72 @@ describe('State Management', () => {
     state.domainsWithAttackSurface.clear();
     state.blockedQueue = [];
     state.blockRequests = false;
+  });
+
+  describe('request removal events', () => {
+    it('emits removed request objects when clearing all requests', () => {
+      const requests = [
+        { request: { method: 'GET', url: 'https://example.com/1' } },
+        { request: { method: 'GET', url: 'https://example.com/2' } }
+      ];
+      requests.forEach(addRequest);
+      const listener = vi.fn();
+      events.on(EVENT_NAMES.REQUESTS_REMOVED, listener);
+
+      clearRequests();
+
+      expect(listener).toHaveBeenCalledWith(requests);
+    });
+
+    it('emits the exact request removed by index', () => {
+      const request = { request: { method: 'GET', url: 'https://example.com/1' } };
+      addRequest(request);
+      const listener = vi.fn();
+      events.on(EVENT_NAMES.REQUESTS_REMOVED, listener);
+
+      requestActions.delete(0);
+
+      expect(listener).toHaveBeenCalledWith([request]);
+    });
+
+    it('emits duplicate request objects removed during deduplication', () => {
+      const original = { request: { method: 'GET', url: 'https://example.com' } };
+      const duplicate = { request: { method: 'GET', url: 'https://example.com' } };
+      state.requests = [original, duplicate];
+      const listener = vi.fn();
+      events.on(EVENT_NAMES.REQUESTS_REMOVED, listener);
+
+      requestActions.removeDuplicates();
+
+      expect(listener).toHaveBeenCalledWith([duplicate]);
+    });
+
+    it('emits all request objects removed with a domain group', () => {
+      const removed = [
+        { request: { method: 'GET', url: 'https://example.com/1' } },
+        { request: { method: 'POST', url: 'https://example.com/2' } }
+      ];
+      const retained = { request: { method: 'GET', url: 'https://other.test/' } };
+      state.requests = [...removed, retained];
+      const listener = vi.fn();
+      events.on(EVENT_NAMES.REQUESTS_REMOVED, listener);
+
+      requestActions.deleteGroup('domain', 'example.com');
+
+      expect(listener).toHaveBeenCalledWith(removed);
+      expect(state.requests).toEqual([retained]);
+    });
+
+    it('retains selection when an earlier group is removed', () => {
+      const removed = { request: { method: 'GET', url: 'https://example.com/' } };
+      const retained = { request: { method: 'GET', url: 'https://other.test/' } };
+      state.requests = [removed, retained];
+      state.selectedRequest = retained;
+
+      requestActions.deleteGroup('domain', 'example.com');
+
+      expect(state.selectedRequest).toBe(retained);
+    });
   });
 
   describe('addRequest', () => {
@@ -290,4 +358,3 @@ describe('State Management', () => {
     });
   });
 });
-

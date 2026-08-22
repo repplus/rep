@@ -662,7 +662,9 @@
                     <select id="ai-provider" class="form-control">
                         <option value="anthropic">Anthropic (Claude)</option>
                         <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI (Codex)</option>
                         <option value="local">Local Model (Ollama)</option>
+                        <option value="opencode">OpenCode</option>
                     </select>
                 </div>
                 <div id="anthropic-settings" class="provider-settings">
@@ -696,6 +698,23 @@
                         </select>
                     </div>
                 </div>
+                <div id="openai-settings" class="provider-settings" style="display: none;">
+                    <div class="form-group">
+                        <label for="openai-api-key">OpenAI API Key</label>
+                        <input type="password" id="openai-api-key" class="form-control" placeholder="sk-...">
+                        <p class="help-text">Stored locally and sent only to the OpenAI API.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="openai-model">Codex Model</label>
+                        <select id="openai-model" class="form-control">
+                            <option value="gpt-5.3-codex">gpt-5.3-codex</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button id="openai-connect-btn" type="button" class="secondary-btn">Load Codex models</button>
+                        <p id="openai-status" class="help-text" role="status"></p>
+                    </div>
+                </div>
                 <div id="local-settings" class="provider-settings" style="display: none;">
                     <div class="form-group">
                         <label for="local-api-url">API URL</label>
@@ -707,6 +726,33 @@
                         <input type="text" id="local-model" class="form-control" placeholder="gemma3:4b">
                         <p class="help-text">Name of the local model to use.</p>
                     </div>
+                </div>
+                <div id="opencode-settings" class="provider-settings" style="display: none;">
+                    <div class="form-group">
+                        <label for="opencode-base-url">Server URL</label>
+                        <input type="text" id="opencode-base-url" class="form-control" placeholder="http://127.0.0.1:4096">
+                        <p class="help-text">The default local server is detected automatically.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="opencode-username">Username</label>
+                        <input type="text" id="opencode-username" class="form-control" placeholder="opencode">
+                    </div>
+                    <div class="form-group">
+                        <label for="opencode-password">Server Password</label>
+                        <input type="password" id="opencode-password" class="form-control" placeholder="OPENCODE_SERVER_PASSWORD">
+                        <p class="help-text">Stored locally and sent only to the configured loopback server.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="opencode-model">Available Model</label>
+                        <select id="opencode-model" class="form-control">
+                            <option value="">Test the connection to load models</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button id="opencode-connect-btn" type="button" class="secondary-btn">Test connection and load models</button>
+                        <p id="opencode-status" class="help-text" role="status"></p>
+                    </div>
+                    <p class="help-text">OpenCode runs locally, but request data may be sent to the cloud provider selected above. OpenCode tools are disabled for rep+ sessions.</p>
                 </div>
             </div>
             <div class="modal-footer">

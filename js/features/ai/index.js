@@ -6,8 +6,15 @@ import {
     fetchAnthropicModels,
     fetchGeminiModels
 } from './core.js';
+import { fetchOpenAIModels } from './openai.js';
 import { handleAIExplanation } from './explain.js';
 import { handleAttackSurfaceAnalysis } from './suggestions.js';
+import {
+    fetchOpenCodeModels,
+    getOpenCodePermissionPattern,
+    normalizeOpenCodeBaseUrl,
+    testOpenCodeConnection
+} from './opencode.js';
 import { state } from '../../core/state.js';
 
 let lastAiMarkdown = '';
@@ -100,6 +107,8 @@ export { handleAIExplanation } from './explain.js';
 export { handleAttackSurfaceAnalysis } from './suggestions.js';
 
 export function setupAIFeatures(elements) {
+    let openCodeConnectAttempt = 0;
+    let openAIConnectAttempt = 0;
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
@@ -108,11 +117,23 @@ export function setupAIFeatures(elements) {
     const anthropicModelSelect = document.getElementById('anthropic-model');
     const geminiApiKeyInput = document.getElementById('gemini-api-key');
     const geminiModelSelect = document.getElementById('gemini-model');
+    const openAISettings = document.getElementById('openai-settings');
+    const openAIApiKeyInput = document.getElementById('openai-api-key');
+    const openAIModelSelect = document.getElementById('openai-model');
+    const openAIConnectBtn = document.getElementById('openai-connect-btn');
+    const openAIStatus = document.getElementById('openai-status');
     const anthropicSettings = document.getElementById('anthropic-settings');
     const geminiSettings = document.getElementById('gemini-settings');
     const localSettings = document.getElementById('local-settings');
     const localApiUrlInput = document.getElementById('local-api-url');
     const localModelInput = document.getElementById('local-model');
+    const opencodeSettings = document.getElementById('opencode-settings');
+    const opencodeBaseUrlInput = document.getElementById('opencode-base-url');
+    const opencodeUsernameInput = document.getElementById('opencode-username');
+    const opencodePasswordInput = document.getElementById('opencode-password');
+    const opencodeModelSelect = document.getElementById('opencode-model');
+    const opencodeConnectBtn = document.getElementById('opencode-connect-btn');
+    const opencodeStatus = document.getElementById('opencode-status');
     const aiMenuBtn = document.getElementById('ai-menu-btn');
     const aiMenuDropdown = document.getElementById('ai-menu-dropdown');
     const explainBtn = document.getElementById('explain-btn');
@@ -185,13 +206,172 @@ export function setupAIFeatures(elements) {
         geminiModelSelect.value = existingValue;
     }
 
+    function renderOpenAIModels(models, currentModel, preserveMissing = true) {
+        if (!openAIModelSelect) return;
+        openAIModelSelect.innerHTML = '';
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.label;
+            openAIModelSelect.appendChild(option);
+        });
+        if (preserveMissing && currentModel && !models.some(model => model.id === currentModel)) {
+            const option = document.createElement('option');
+            option.value = currentModel;
+            option.textContent = `${currentModel} (saved)`;
+            openAIModelSelect.appendChild(option);
+        }
+        if (currentModel && (preserveMissing || models.some(model => model.id === currentModel))) {
+            openAIModelSelect.value = currentModel;
+        }
+    }
+
+    function ensureOpenAIPermission() {
+        return new Promise((resolve, reject) => {
+            chrome.permissions.request({ origins: ['https://api.openai.com/*'] }, granted => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (granted) {
+                    resolve();
+                } else {
+                    reject(new Error('Permission to connect to the OpenAI API was denied.'));
+                }
+            });
+        });
+    }
+
+    async function connectOpenAI() {
+        const attempt = ++openAIConnectAttempt;
+        const apiKey = openAIApiKeyInput?.value.trim() || '';
+        if (openAIStatus) openAIStatus.textContent = 'Loading Codex models...';
+        if (openAIConnectBtn) openAIConnectBtn.disabled = true;
+
+        try {
+            if (!apiKey) throw new Error('Enter an OpenAI API key first.');
+            await ensureOpenAIPermission();
+            const models = await fetchOpenAIModels(apiKey);
+            if (attempt !== openAIConnectAttempt) return false;
+            if (models.length === 0) throw new Error('No Codex models were found for this API key.');
+            renderOpenAIModels(models, openAIModelSelect?.value || localStorage.getItem('openai_model') || '', false);
+            if (openAIStatus) openAIStatus.textContent = `Loaded ${models.length} Codex models.`;
+            return true;
+        } catch (error) {
+            if (attempt !== openAIConnectAttempt) return false;
+            if (openAIStatus) openAIStatus.textContent = `Connection failed: ${error.message}`;
+            throw error;
+        } finally {
+            if (attempt === openAIConnectAttempt && openAIConnectBtn) openAIConnectBtn.disabled = false;
+        }
+    }
+
+    function getOpenCodeFormSettings() {
+        const baseUrl = normalizeOpenCodeBaseUrl(opencodeBaseUrlInput?.value.trim());
+        return {
+            provider: 'opencode',
+            apiKey: baseUrl,
+            baseUrl,
+            username: opencodeUsernameInput?.value.trim() || 'opencode',
+            password: opencodePasswordInput?.value || '',
+            model: opencodeModelSelect?.value || ''
+        };
+    }
+
+    function ensureOpenCodePermission(baseUrl) {
+        const origins = [getOpenCodePermissionPattern(baseUrl)];
+        return new Promise((resolve, reject) => {
+            chrome.permissions.request({ origins }, granted => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (granted) {
+                    resolve();
+                } else {
+                    reject(new Error('Permission to connect to the local OpenCode server was denied.'));
+                }
+            });
+        });
+    }
+
+    function populateOpenCodeDefaults() {
+        if (opencodeBaseUrlInput) {
+            opencodeBaseUrlInput.value = localStorage.getItem('opencode_base_url') || 'http://127.0.0.1:4096';
+        }
+        if (opencodeUsernameInput) {
+            opencodeUsernameInput.value = localStorage.getItem('opencode_username') || 'opencode';
+        }
+        if (opencodePasswordInput) {
+            opencodePasswordInput.value = localStorage.getItem('opencode_password') || '';
+        }
+
+        const savedModel = localStorage.getItem('opencode_model') || '';
+        renderOpenCodeModels([], savedModel);
+    }
+
+    function renderOpenCodeModels(models, currentModel, preserveMissing = true) {
+        if (!opencodeModelSelect) return;
+        opencodeModelSelect.innerHTML = '';
+
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.label;
+            opencodeModelSelect.appendChild(option);
+        });
+
+        if (preserveMissing && currentModel && !models.some(model => model.id === currentModel)) {
+            const savedOption = document.createElement('option');
+            savedOption.value = currentModel;
+            savedOption.textContent = `${currentModel} (saved)`;
+            opencodeModelSelect.appendChild(savedOption);
+        }
+
+        if (currentModel && (preserveMissing || models.some(model => model.id === currentModel))) {
+            opencodeModelSelect.value = currentModel;
+        }
+    }
+
+    async function connectOpenCode() {
+        const attempt = ++openCodeConnectAttempt;
+        if (opencodeStatus) opencodeStatus.textContent = 'Connecting...';
+        if (opencodeConnectBtn) opencodeConnectBtn.disabled = true;
+
+        try {
+            const settings = getOpenCodeFormSettings();
+            await ensureOpenCodePermission(settings.baseUrl);
+            const [health, models] = await Promise.all([
+                testOpenCodeConnection(settings),
+                fetchOpenCodeModels(settings)
+            ]);
+            if (attempt !== openCodeConnectAttempt) return false;
+            if (models.length === 0) {
+                throw new Error('OpenCode is healthy, but no available models were found.');
+            }
+            renderOpenCodeModels(models, opencodeModelSelect?.value || settings.model, false);
+            if (opencodeStatus) {
+                opencodeStatus.textContent = `Connected to OpenCode ${health.version || ''}. Loaded ${models.length} models.`;
+            }
+            return true;
+        } catch (error) {
+            if (attempt !== openCodeConnectAttempt) return false;
+            if (opencodeStatus) opencodeStatus.textContent = `Connection failed: ${error.message}`;
+            throw error;
+        } finally {
+            if (attempt === openCodeConnectAttempt && opencodeConnectBtn) {
+                opencodeConnectBtn.disabled = false;
+            }
+        }
+    }
+
     // Handle provider switching
     if (aiProviderSelect) {
         aiProviderSelect.addEventListener('change', () => {
             const provider = aiProviderSelect.value;
+            if (provider !== 'opencode') openCodeConnectAttempt++;
+            if (provider !== 'openai') openAIConnectAttempt++;
             anthropicSettings.style.display = 'none';
             geminiSettings.style.display = 'none';
+            openAISettings.style.display = 'none';
             localSettings.style.display = 'none';
+            opencodeSettings.style.display = 'none';
             
             if (provider === 'gemini') {
                 geminiSettings.style.display = 'block';
@@ -200,8 +380,17 @@ export function setupAIFeatures(elements) {
                 if (key) {
                     populateGeminiModels(key, geminiModelSelect ? geminiModelSelect.value : '');
                 }
+            } else if (provider === 'openai') {
+                openAISettings.style.display = 'block';
+                if (openAIApiKeyInput) openAIApiKeyInput.value = localStorage.getItem('openai_api_key') || '';
+                renderOpenAIModels([], localStorage.getItem('openai_model') || 'gpt-5.3-codex');
+                if (openAIApiKeyInput?.value) connectOpenAI().catch(() => {});
             } else if (provider === 'local') {
                 localSettings.style.display = 'block';
+            } else if (provider === 'opencode') {
+                opencodeSettings.style.display = 'block';
+                populateOpenCodeDefaults();
+                connectOpenCode().catch(() => {});
             } else {
                 anthropicSettings.style.display = 'block';
                 const key = anthropicApiKeyInput ? anthropicApiKeyInput.value.trim() : '';
@@ -214,13 +403,16 @@ export function setupAIFeatures(elements) {
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            const { provider, apiKey, model } = getAISettings();
+            const settings = getAISettings();
+            const { provider, apiKey, model } = settings;
 
             if (aiProviderSelect) aiProviderSelect.value = provider;
 
             anthropicSettings.style.display = 'none';
             geminiSettings.style.display = 'none';
+            openAISettings.style.display = 'none';
             localSettings.style.display = 'none';
+            opencodeSettings.style.display = 'none';
 
             if (provider === 'gemini') {
                 geminiApiKeyInput.value = apiKey;
@@ -228,10 +420,23 @@ export function setupAIFeatures(elements) {
                 geminiSettings.style.display = 'block';
                 // Auto-populate models list
                 populateGeminiModels(apiKey, model);
+            } else if (provider === 'openai') {
+                if (openAIApiKeyInput) openAIApiKeyInput.value = apiKey;
+                renderOpenAIModels([], model);
+                openAISettings.style.display = 'block';
+                if (apiKey) connectOpenAI().catch(() => {});
             } else if (provider === 'local') {
                 if (localApiUrlInput) localApiUrlInput.value = apiKey; // apiKey is actually the URL for local
                 if (localModelInput) localModelInput.value = model;
                 localSettings.style.display = 'block';
+            } else if (provider === 'opencode') {
+                if (opencodeBaseUrlInput) opencodeBaseUrlInput.value = settings.baseUrl;
+                if (opencodeUsernameInput) opencodeUsernameInput.value = settings.username;
+                if (opencodePasswordInput) opencodePasswordInput.value = settings.password;
+                renderOpenCodeModels([], model);
+                if (opencodeStatus) opencodeStatus.textContent = 'Test the connection to refresh available models.';
+                opencodeSettings.style.display = 'block';
+                connectOpenCode().catch(() => {});
             } else {
                 anthropicApiKeyInput.value = apiKey;
                 if (anthropicModelSelect) anthropicModelSelect.value = model;
@@ -244,28 +449,80 @@ export function setupAIFeatures(elements) {
         });
     }
 
+    if (opencodeConnectBtn) {
+        opencodeConnectBtn.addEventListener('click', () => {
+            connectOpenCode().catch(() => {});
+        });
+    }
+
+    if (openAIConnectBtn) {
+        openAIConnectBtn.addEventListener('click', () => {
+            connectOpenAI().catch(() => {});
+        });
+    }
+
+    openAIApiKeyInput?.addEventListener('input', () => {
+        openAIConnectAttempt++;
+        renderOpenAIModels([], 'gpt-5.3-codex');
+        if (openAIStatus) openAIStatus.textContent = 'API key changed. Reload Codex models.';
+        if (openAIConnectBtn) openAIConnectBtn.disabled = false;
+    });
+
+    [opencodeBaseUrlInput, opencodeUsernameInput, opencodePasswordInput].forEach(input => {
+        input?.addEventListener('input', () => {
+            openCodeConnectAttempt++;
+            renderOpenCodeModels([], '');
+            if (opencodeStatus) opencodeStatus.textContent = 'Connection details changed. Reconnecting is required.';
+            if (opencodeConnectBtn) opencodeConnectBtn.disabled = false;
+        });
+    });
+
     if (saveSettingsBtn) {
-        saveSettingsBtn.addEventListener('click', () => {
+        saveSettingsBtn.addEventListener('click', async () => {
             const provider = aiProviderSelect ? aiProviderSelect.value : 'anthropic';
-            let key, model;
+            let key, model, options = {};
 
             if (provider === 'gemini') {
                 key = geminiApiKeyInput.value.trim();
                 model = geminiModelSelect ? geminiModelSelect.value : 'gemini-flash-latest';
+            } else if (provider === 'openai') {
+                try {
+                    const connected = await connectOpenAI();
+                    if (!connected) return;
+                    key = openAIApiKeyInput.value.trim();
+                    model = openAIModelSelect?.value || '';
+                } catch (error) {
+                    alert(error.message);
+                    return;
+                }
             } else if (provider === 'local') {
                 key = localApiUrlInput ? localApiUrlInput.value.trim() : 'http://localhost:11434/api/generate';
                 model = localModelInput ? localModelInput.value.trim() : '';
+            } else if (provider === 'opencode') {
+                try {
+                    const connected = await connectOpenCode();
+                    if (!connected) return;
+                    const settings = getOpenCodeFormSettings();
+                    key = settings.baseUrl;
+                    model = settings.model;
+                    options = { username: settings.username, password: settings.password };
+                } catch (error) {
+                    alert(error.message);
+                    return;
+                }
             } else {
                 key = anthropicApiKeyInput.value.trim();
                 model = anthropicModelSelect ? anthropicModelSelect.value : 'claude-3-5-sonnet-20241022';
             }
 
-            if (key && (provider !== 'local' || model)) {
-                saveAISettings(provider, key, model);
+            if (key && (!['local', 'opencode'].includes(provider) || model)) {
+                saveAISettings(provider, key, model, options);
                 alert('Settings saved!');
                 settingsModal.style.display = 'none';
-            } else if (provider === 'local' && !model) {
-                alert('Please enter a model name for the local provider.');
+            } else if (['local', 'opencode'].includes(provider) && !model) {
+                alert(provider === 'opencode'
+                    ? 'Test the OpenCode connection and select a model first.'
+                    : 'Please enter a model name for the local provider.');
             } else {
                 alert('Please enter required settings.');
             }

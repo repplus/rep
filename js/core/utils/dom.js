@@ -6,6 +6,39 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
+export function sanitizeHtml(html) {
+    const allowedTags = new Set([
+        'A', 'BLOCKQUOTE', 'BR', 'CODE', 'DEL', 'EM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+        'HR', 'LI', 'OL', 'P', 'PRE', 'STRONG', 'TABLE', 'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'UL'
+    ]);
+    const template = document.createElement('template');
+    template.innerHTML = html;
+
+    template.content.querySelectorAll('*').forEach(element => {
+        if (!allowedTags.has(element.tagName)) {
+            element.replaceWith(document.createTextNode(element.textContent || ''));
+            return;
+        }
+
+        Array.from(element.attributes).forEach(attribute => {
+            const safeCodeClass = element.tagName === 'CODE' &&
+                attribute.name === 'class' &&
+                /^language-[a-z0-9_-]+$/i.test(attribute.value);
+            if (!safeCodeClass) element.removeAttribute(attribute.name);
+        });
+    });
+
+    return template.innerHTML;
+}
+
+export function renderMarkdown(text, parser = globalThis.marked) {
+    const source = String(text ?? '');
+    if (!parser?.parse) {
+        return `<pre style="white-space: pre-wrap; font-family: sans-serif;">${escapeHtml(source)}</pre>`;
+    }
+    return sanitizeHtml(parser.parse(source));
+}
+
 /**
  * Escape CSV field value (handles quotes, commas, newlines)
  */
@@ -161,4 +194,3 @@ function showCopySuccess(btn) {
         }
     }, 1500);
 }
-

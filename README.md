@@ -137,8 +137,8 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
   - Conditional response inclusion (only when asked about)
   - Limits response history to last 2-3 responses
   - Keeps last 15 messages in conversation history
-- **Multi-Provider Support**: Works with Claude, Gemini, and local Ollama models
-  - Automatic model detection for Anthropic and Gemini APIs
+- **Multi-Provider Support**: Works with Claude, Gemini, OpenAI Codex, OpenCode, and local Ollama models
+  - Automatic model detection for Anthropic, Gemini, OpenAI Codex, and OpenCode
   - Manual URL/model configuration for local models
   - Streaming support for all providers
 - **Use Cases**:
@@ -150,7 +150,7 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
   - Multi-step attack chain planning with cross-request context
 
 #### Other AI Features
-- **Explain Request** (Claude/Gemini) with streaming responses.
+- **Explain Request** with streaming responses from Claude, Gemini, OpenAI Codex, OpenCode, or Ollama.
 - **Suggest Attack Vectors**: request + response analysis; auto-send if no response; payload suggestions; reflections/errors/multi-step chains; fallback to request-only with warning.
 - **Context menu "Explain with AI"** for selected text.
 - **Attack Surface Analysis** per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
@@ -217,11 +217,47 @@ If you use a local model (e.g., Ollama) you must allow Chrome extensions to call
 3. Verify your model exists (e.g., `gemma3:4b`) with `ollama list`.
 4. Reload the extension and try again. If you still see 403, check Ollama logs for details.
 
+### OpenCode Setup
+
+rep+ can use a local [OpenCode](https://opencode.ai/) server as a gateway to any model already connected in OpenCode.
+
+1. Start OpenCode from a dedicated empty directory on a stable loopback port. A password is strongly recommended:
+   ```bash
+   mkdir -p ~/.local/share/rep-plus/opencode
+   cd ~/.local/share/rep-plus/opencode
+   OPENCODE_SERVER_PASSWORD="choose-a-password" opencode serve --hostname 127.0.0.1 --port 4096
+   ```
+   OpenCode also loads global `~/.config/opencode/AGENTS.md` or `~/.claude/CLAUDE.md` instructions. If those may contain sensitive information, launch with an isolated home while retaining your OpenCode authentication data:
+   ```bash
+   ORIGINAL_HOME="$HOME"
+   REPPLUS_OPENCODE_HOME="$HOME/.local/share/rep-plus/opencode/home"
+   mkdir -p "$REPPLUS_OPENCODE_HOME" "$HOME/.local/share/rep-plus/opencode/work"
+   cd "$HOME/.local/share/rep-plus/opencode/work"
+   HOME="$REPPLUS_OPENCODE_HOME" \
+     XDG_DATA_HOME="$ORIGINAL_HOME/.local/share" \
+     OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 \
+     OPENCODE_SERVER_PASSWORD="choose-a-password" \
+     opencode serve --hostname 127.0.0.1 --port 4096
+   ```
+2. Open rep+ Settings and select **OpenCode**.
+3. rep+ automatically connects to `http://127.0.0.1:4096` as `opencode` and loads models available from that server configuration.
+4. If your server uses `OPENCODE_SERVER_PASSWORD` or a custom loopback port, enter those advanced connection details and retry, then save.
+
+OpenCode sessions are kept while their rep+ request chat is active and deleted when that chat or request is cleared. All OpenCode tools are disabled for these sessions. OpenCode itself runs locally, but request and response data may still be sent to the cloud provider backing the model you select.
+
+### OpenAI Codex Setup
+
+1. Open rep+ Settings and select **OpenAI (Codex)**.
+2. Enter an OpenAI API key and click **Load Codex models**.
+3. Select a model available to the API key and save. rep+ uses the OpenAI Responses API with response storage disabled.
+
 
 ## Permissions & Privacy
-- **Optional**: `webRequest` + `<all_urls>` only when you enable multi-tab capture.  
+- **Required**: `storage` keeps OpenCode cleanup retries durable across service-worker and browser restarts.
+- **Optional**: `webRequest` for multi-tab capture; `<all_urls>` for multi-tab capture, cross-origin replay, and approved loopback OpenCode access.
+- **Optional**: `https://api.openai.com/*` when you configure the direct OpenAI Codex provider.
 - **Data**: Stored locally; no tracking/analytics.  
-- **AI**: Your API keys stay local; request/response content is sent only to the provider you choose (Claude/Gemini) when you invoke AI features.
+- **AI**: Your credentials stay local; request/response content is sent only to the provider you choose when you invoke AI features. When using OpenCode, the selected OpenCode model may be backed by a cloud provider.
 
 
 ## ⚠️ Limitations

@@ -90,6 +90,7 @@ export const EVENT_NAMES = {
     REQUEST_ACTION_DELETE_GROUP: 'request:action:delete-group',
     REQUEST_ACTION_TIMELINE: 'request:action:timeline',
     REQUEST_ACTION_COLOR: 'request:action:color',
+    REQUESTS_REMOVED: 'requests:removed',
     
     // UI events
     UI_RESIZE: 'ui:resize',
@@ -125,4 +126,3 @@ export const EVENT_NAMES = {
     REQUESTS_EXPORTED: 'requests:exported',
     REQUESTS_IMPORTED: 'requests:imported',
 };
-
