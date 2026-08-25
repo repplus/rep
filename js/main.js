@@ -43,8 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initMultiTabCapture();
     initExtractorUI();
     setupBulkReplay();
-    setupAIFeatures(elements);
-    setupLLMChat(elements);
+    const llmChat = setupLLMChat(elements);
+    setupAIFeatures(elements, llmChat);
     initSearch();
 
     // Promotional Banner

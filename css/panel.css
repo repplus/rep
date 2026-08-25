@@ -1128,6 +1128,8 @@ body.theme-transitioning img {
     /* Vertical split */
     position: relative;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .split-view-container {
@@ -1162,6 +1164,7 @@ body.theme-transitioning img {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -1179,6 +1182,8 @@ body.theme-transitioning img {
 .llm-chat-pane {
     flex: 0 0 33.33%;
     min-width: 300px;
+    min-height: 0;
+    height: 100%;
     border-left: 1px solid var(--border-color);
     display: none;
     flex-direction: column;
@@ -1812,6 +1817,7 @@ tr.selected {
     flex-direction: column;
     overflow: hidden;
     min-width: 0;
+    min-height: 0;
 }
 
 /* Editor */
@@ -2306,27 +2312,6 @@ pre {
 .context-menu-item:hover {
     background: var(--hover-bg);
     color: var(--accent-color);
-}
-
-/* AI export dropdown */
-#ai-export-menu .menu-item {
-    padding: 8px 12px;
-    text-align: left;
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text-color);
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
-}
-
-#ai-export-menu .menu-item:hover {
-    background-color: var(--hover-bg);
-    color: var(--accent-color);
-    transform: translateX(2px);
 }
 
 .context-menu-item.has-submenu:hover .context-submenu {
@@ -4391,8 +4376,50 @@ pre {
 
 /* LLM Chat Pane */
 
+.llm-chat-export-container {
+    position: relative;
+}
+
+.llm-chat-export-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 100;
+    min-width: 190px;
+    overflow: hidden;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.llm-chat-export-menu.show {
+    display: block;
+}
+
+.llm-chat-export-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    color: var(--text-color);
+    background: transparent;
+    border: 0;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.llm-chat-export-menu button + button {
+    border-top: 1px solid var(--border-color);
+}
+
+.llm-chat-export-menu button:hover {
+    background: var(--hover-color);
+}
+
 .llm-chat-body {
-    flex: 1;
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -4431,8 +4458,11 @@ pre {
 }
 
 .llm-chat-messages {
-    flex: 1;
+    flex: 1 1 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     padding: var(--spacing-md);
     display: flex;
     flex-direction: column;
@@ -4583,7 +4613,7 @@ pre {
     gap: var(--spacing-sm);
     border-top: 1px solid var(--border-color);
     padding: var(--spacing-md);
-    flex-shrink: 0;
+    flex: 0 0 auto;
     background: var(--sidebar-bg);
 }
 

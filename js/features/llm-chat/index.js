@@ -44,6 +44,89 @@ Important technical requirements:
 
 Be friendly, helpful, and clear in your explanations.`;
 
+function getChatExportFilename(extension) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const request = state.selectedRequest?.request;
+    let host = 'unknown';
+    let endpoint = 'unknown';
+
+    if (request?.url) {
+        try {
+            const url = new URL(request.url);
+            host = url.hostname.replace(/[^a-zA-Z0-9.-]/g, '_') || host;
+            endpoint = url.pathname
+                .replace(/^\/+|\/+$/g, '')
+                .replace(/\//g, '_')
+                .replace(/[^a-zA-Z0-9._-]/g, '_')
+                .slice(0, 50) || 'root';
+        } catch (error) {
+            // Keep the safe fallback names for malformed request URLs.
+        }
+    }
+
+    return `rep-plus-ai-chat-${host}-${endpoint}-${timestamp}.${extension}`;
+}
+
+function buildChatTranscriptMarkdown() {
+    if (chatHistory.length === 0) return '';
+
+    const request = state.selectedRequest?.request;
+    const requestLabel = request
+        ? `${request.method || 'GET'} ${request.url || ''}`.trim()
+        : 'Unknown request';
+    const messages = chatHistory.map(message => {
+        const heading = message.role === 'assistant' ? 'Rep+ AI' : 'You';
+        return `## ${heading}\n\n${message.content}`;
+    });
+
+    return `# Rep+ AI conversation\n\n**Request:** ${requestLabel}\n\n${messages.join('\n\n')}`;
+}
+
+function downloadChatTranscript(markdown) {
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = getChatExportFilename('md');
+    anchor.click();
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function printChatTranscript(markdown) {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const title = getChatExportFilename('pdf').replace(/\.pdf$/, '');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>${escapeHtml(title)}</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 24px; line-height: 1.6; }
+                pre { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+                .footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #ddd; color: #555; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <pre>${escapeHtml(markdown)}</pre>
+            <div class="footer">Exported from rep+ on ${escapeHtml(new Date().toLocaleString())}</div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+}
+
 function formatRequestForContext(request) {
     if (!request || !request.request) return '';
     
@@ -580,6 +663,10 @@ export function setupLLMChat(elements) {
     const chatSendBtn = document.getElementById('llm-chat-send-btn');
     const chatClearBtn = document.getElementById('llm-chat-clear-btn');
     const chatRequestBadge = document.getElementById('llm-chat-request-badge');
+    const chatExportToggle = document.getElementById('llm-chat-export-toggle');
+    const chatExportMenu = document.getElementById('llm-chat-export-menu');
+    const chatExportMarkdown = document.getElementById('llm-chat-export-md');
+    const chatExportPdf = document.getElementById('llm-chat-export-pdf');
     
     if (!chatPane) {
         console.error('LLM Chat: Chat pane not found');
@@ -601,71 +688,53 @@ export function setupLLMChat(elements) {
         chatResizeHandle.style.display = 'none';
     }
     
-    // Toggle chat pane visibility
-    chatToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        // Check if pane is visible (not 'none' and not empty string)
-        const currentDisplay = chatPane.style.display || window.getComputedStyle(chatPane).display;
-        const isVisible = currentDisplay !== 'none';
-        
-        if (isVisible) {
-            // Hide chat pane
-            chatPane.style.display = 'none';
-            if (chatResizeHandle) chatResizeHandle.style.display = 'none';
-            // Remove active class (toggle off - no glow)
-            chatToggleBtn.classList.remove('active');
-            // Reset to 50/50 split between request and response
-            if (requestPane && responsePane) {
-                requestPane.style.flex = '1';
-                responsePane.style.flex = '1';
-            }
-        } else {
-            // Show chat pane
-            chatPane.style.display = 'flex';
-            if (chatResizeHandle) chatResizeHandle.style.display = 'block';
-            // Add active class (toggle on - with glow)
-            chatToggleBtn.classList.add('active');
-            // Set equal widths for all three panes: 33.33% each
-            if (requestPane && responsePane && chatPane) {
-                requestPane.style.flex = '0 0 33.33%';
-                responsePane.style.flex = '0 0 33.33%';
-                chatPane.style.flex = '0 0 33.33%';
-            }
-            if (chatInput) {
+    function setChatPaneVisibility(visible, focusInput = true) {
+        chatPane.style.display = visible ? 'flex' : 'none';
+        if (chatResizeHandle) chatResizeHandle.style.display = visible ? 'block' : 'none';
+        chatToggleBtn.classList.toggle('active', visible);
+
+        if (requestPane && responsePane) {
+            requestPane.style.flex = visible ? '0 0 33.33%' : '1';
+            responsePane.style.flex = visible ? '0 0 33.33%' : '1';
+        }
+        if (visible) {
+            chatPane.style.flex = '0 0 33.33%';
+            if (focusInput && chatInput) {
                 setTimeout(() => chatInput.focus(), 100);
             }
-            // Clear chat when opening if no request is selected
             if (!state.selectedRequest) {
                 clearChatHistory();
                 if (chatMessages) {
                     chatMessages.innerHTML = '<div class="chat-message chat-message-system">Select a request to start chatting with the LLM about it.</div>';
                 }
             }
-        }
-    });
-    
-    // Close chat pane
-    if (chatCloseBtn) {
-        chatCloseBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            chatPane.style.display = 'none';
-            if (chatResizeHandle) chatResizeHandle.style.display = 'none';
-            // Remove active class (toggle off - no glow)
-            if (chatToggleBtn) chatToggleBtn.classList.remove('active');
-            // Re-enable request/response resize handle when chat is closed
+        } else {
             const requestResponseResizeHandle = document.querySelector('.pane-resize-handle:not(.chat-resize-handle)');
             if (requestResponseResizeHandle) {
                 requestResponseResizeHandle.style.pointerEvents = '';
                 requestResponseResizeHandle.style.opacity = '';
             }
-            // Reset to 50/50 split between request and response
-            if (requestPane && responsePane) {
-                requestPane.style.flex = '1';
-                responsePane.style.flex = '1';
-            }
+        }
+    }
+
+    function openChatPane() {
+        setChatPaneVisibility(true);
+    }
+
+    // Toggle chat pane visibility
+    chatToggleBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const currentDisplay = chatPane.style.display || window.getComputedStyle(chatPane).display;
+        setChatPaneVisibility(currentDisplay === 'none');
+    });
+
+    if (chatCloseBtn) {
+        chatCloseBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            setChatPaneVisibility(false);
         });
     }
-    
+
     // Setup resize handle for chat pane
     if (chatResizeHandle && chatPane) {
         let isResizing = false;
@@ -768,30 +837,26 @@ export function setupLLMChat(elements) {
         chatSendBtn.disabled = !hasText;
     }
     
-    // Send message
-    function handleSend() {
-        if (!chatInput || !chatMessages) return;
-        
-        const message = chatInput.value.trim();
-        if (!message) return;
-        
+    // Send a typed or programmatic message through the same request-scoped conversation.
+    function submitMessage(message) {
+        if (!chatMessages) return Promise.resolve(false);
+
+        message = (message || '').trim();
+        if (!message) return Promise.resolve(false);
+
         if (!state.selectedRequest) {
             addSystemMessage('Please select a request first.');
-            return;
+            return Promise.resolve(false);
         }
-        
-        // Add user message to UI
+
         addUserMessage(message);
-        chatInput.value = '';
-        autoResizeTextarea();
-        updateSendButtonState();
         
         // Show loading state
         const loadingId = addAssistantMessage('', true);
         const loadingElement = document.getElementById(loadingId);
         
         // Send to LLM
-        sendChatMessage(
+        return sendChatMessage(
             message,
             loadingElement, // Pass loading element for updates
             (text) => {
@@ -951,7 +1016,22 @@ export function setupLLMChat(elements) {
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
             }
-        );
+        ).then(() => true);
+    }
+
+    function handleSend() {
+        if (!chatInput) return Promise.resolve(false);
+
+        const message = chatInput.value.trim();
+        if (!message) return Promise.resolve(false);
+
+        if (state.selectedRequest) {
+            chatInput.value = '';
+            autoResizeTextarea();
+            updateSendButtonState();
+        }
+
+        return submitMessage(message);
     }
     
     if (chatSendBtn) {
@@ -1002,6 +1082,42 @@ export function setupLLMChat(elements) {
         });
     }
     
+    if (chatExportToggle && chatExportMenu) {
+        chatExportToggle.addEventListener('click', (event) => {
+            event.stopPropagation();
+            chatExportMenu.classList.toggle('show');
+        });
+        document.addEventListener('click', (event) => {
+            if (!chatExportMenu.contains(event.target) && event.target !== chatExportToggle) {
+                chatExportMenu.classList.remove('show');
+            }
+        });
+    }
+
+    if (chatExportMarkdown) {
+        chatExportMarkdown.addEventListener('click', () => {
+            const markdown = buildChatTranscriptMarkdown();
+            if (!markdown) {
+                alert('No conversation to export yet.');
+                return;
+            }
+            downloadChatTranscript(markdown);
+            chatExportMenu?.classList.remove('show');
+        });
+    }
+
+    if (chatExportPdf) {
+        chatExportPdf.addEventListener('click', () => {
+            const markdown = buildChatTranscriptMarkdown();
+            if (!markdown) {
+                alert('No conversation to export yet.');
+                return;
+            }
+            printChatTranscript(markdown);
+            chatExportMenu?.classList.remove('show');
+        });
+    }
+
     // Function to update request badge in header
     function updateRequestBadge() {
         if (!chatRequestBadge) return;
@@ -1848,5 +1964,13 @@ export function setupLLMChat(elements) {
             addSystemMessage('Select a request to start chatting. I can help you understand, modify, or debug HTTP requests and responses.');
         }
     }
+
+    return {
+        open: openChatPane,
+        prompt(message) {
+            openChatPane();
+            return submitMessage(message);
+        }
+    };
 }
 

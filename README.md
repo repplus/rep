@@ -150,11 +150,10 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
   - Multi-step attack chain planning with cross-request context
 
 #### Other AI Features
-- **Explain Request** (Claude/Gemini) with streaming responses.
-- **Suggest Attack Vectors**: request + response analysis; auto-send if no response; payload suggestions; reflections/errors/multi-step chains; fallback to request-only with warning.
-- **Context menu "Explain with AI"** for selected text.
+- **Explain Request** and **Suggest Attack Vectors** open directly in the request chat, preserving context for follow-up questions.
+- **Context menu "Explain with AI"** sends selected request or response text into the same conversation.
 - **Attack Surface Analysis** per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
-- **Export AI outputs** as Markdown or PDF to save RPD/TPM.
+- **Export AI conversations** as Markdown or print them to PDF.
 
 ### Productivity & Theming
 - **7 Beautiful Themes**: Choose from a variety of modern, carefully crafted themes:
