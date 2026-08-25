@@ -6,6 +6,7 @@ import { formatBytes } from '../../core/utils/format.js';
 import { highlightHTTP } from '../../core/utils/network.js';
 import { renderDiff } from '../../core/utils/misc.js';
 import { escapeHtml } from '../../core/utils/dom.js';
+import { requestReplayPermission } from '../../network/permissions.js';
 
 export function setupBulkReplay() {
     const bulkReplayBtn = document.getElementById('bulk-replay-btn');
@@ -401,6 +402,12 @@ export function setupBulkReplay() {
             if (!confirm(`This will generate ${attackRequests.length} requests. Continue?`)) {
                 return;
             }
+        }
+
+        const hasReplayPermission = await requestReplayPermission();
+        if (!hasReplayPermission) {
+            alert('The <all_urls> permission is required to start Bulk Replay.');
+            return;
         }
 
         bulkConfigModal.style.display = 'none';
