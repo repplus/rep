@@ -6,6 +6,11 @@ import { formatBytes } from '../../core/utils/format.js';
 import { highlightHTTP } from '../../core/utils/network.js';
 import { renderDiff } from '../../core/utils/misc.js';
 import { escapeHtml } from '../../core/utils/dom.js';
+import {
+    getMatchedResponseMatchers,
+    highlightResponseMatches,
+    normalizeResponseMatchers
+} from './response-matches.js';
 
 export function setupBulkReplay() {
     const bulkReplayBtn = document.getElementById('bulk-replay-btn');
@@ -19,6 +24,148 @@ export function setupBulkReplay() {
     const bulkStopBtn = document.getElementById('bulk-stop-btn');
     const bulkCloseBtn = document.getElementById('bulk-close-btn');
     const verticalResizeHandle = document.querySelector('.vertical-resize-handle');
+    const responseMatchersContainer = document.getElementById('response-matchers');
+    const addResponseMatcherBtn = document.getElementById('add-response-matcher');
+    const responseMatchCaseSensitiveInput = document.getElementById('response-match-case-sensitive');
+
+    function readResponseMatchers() {
+        if (!responseMatchersContainer) return [];
+
+        return normalizeResponseMatchers(
+            Array.from(responseMatchersContainer.querySelectorAll('.response-matcher-row')).map(row => ({
+                text: row.querySelector('.response-matcher-text')?.value || '',
+                mode: row.querySelector('.response-matcher-mode')?.value || 'partial'
+            }))
+        );
+    }
+
+    function showEmptyResponseMatchers() {
+        if (!responseMatchersContainer || responseMatchersContainer.children.length > 0) return;
+
+        const empty = document.createElement('div');
+        empty.className = 'response-matcher-empty';
+        empty.textContent = 'No response matchers configured.';
+        responseMatchersContainer.appendChild(empty);
+    }
+
+    function appendResponseMatcherRow(matcher = { text: '', mode: 'partial' }, focus = false) {
+        if (!responseMatchersContainer) return;
+
+        responseMatchersContainer.querySelector('.response-matcher-empty')?.remove();
+
+        const row = document.createElement('div');
+        row.className = 'response-matcher-row';
+
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.className = 'form-control response-matcher-text';
+        textInput.placeholder = 'Response text';
+        textInput.value = matcher.text || '';
+        textInput.setAttribute('aria-label', 'Response matcher text');
+
+        const modeSelect = document.createElement('select');
+        modeSelect.className = 'form-control response-matcher-mode';
+        modeSelect.setAttribute('aria-label', 'Response matcher mode');
+        modeSelect.innerHTML = `
+            <option value="partial">Contains</option>
+            <option value="whole">Whole response</option>
+        `;
+        modeSelect.value = matcher.mode === 'whole' ? 'whole' : 'partial';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'response-matcher-remove';
+        removeBtn.title = 'Remove matcher';
+        removeBtn.setAttribute('aria-label', 'Remove response matcher');
+        removeBtn.textContent = '×';
+
+        const syncState = () => {
+            state.responseMatchers = readResponseMatchers();
+        };
+        textInput.addEventListener('input', syncState);
+        modeSelect.addEventListener('change', syncState);
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+            syncState();
+            showEmptyResponseMatchers();
+        });
+
+        row.append(textInput, modeSelect, removeBtn);
+        responseMatchersContainer.appendChild(row);
+        if (focus) textInput.focus();
+    }
+
+    function renderResponseMatcherConfig(matchers = state.responseMatchers) {
+        if (!responseMatchersContainer) return;
+
+        const normalizedMatchers = normalizeResponseMatchers(matchers);
+        state.responseMatchers = normalizedMatchers;
+        responseMatchersContainer.replaceChildren();
+        normalizedMatchers.forEach(matcher => appendResponseMatcherRow(matcher));
+        showEmptyResponseMatchers();
+    }
+
+    function addMarkedResponseMatcher(text) {
+        const matchers = normalizeResponseMatchers([
+            ...readResponseMatchers(),
+            { text, mode: 'partial' }
+        ]);
+        renderResponseMatcherConfig(matchers);
+    }
+
+    renderResponseMatcherConfig();
+
+    addResponseMatcherBtn?.addEventListener('click', () => {
+        state.responseMatchers = readResponseMatchers();
+        appendResponseMatcherRow({ text: '', mode: 'partial' }, true);
+    });
+
+    if (responseMatchCaseSensitiveInput) {
+        responseMatchCaseSensitiveInput.checked = state.responseMatchCaseSensitive;
+        responseMatchCaseSensitiveInput.addEventListener('change', () => {
+            state.responseMatchCaseSensitive = responseMatchCaseSensitiveInput.checked;
+        });
+    }
+
+    function renderResponseMatches(cell, matchers, { configuredMatcherCount = 0, error = false } = {}) {
+        if (!cell) return;
+
+        cell.replaceChildren();
+        cell.classList.toggle('empty', configuredMatcherCount === 0);
+        cell.classList.toggle('no-match', configuredMatcherCount > 0 && matchers.length === 0 && !error);
+
+        if (configuredMatcherCount === 0) {
+            cell.textContent = '—';
+            return;
+        }
+
+        if (error) {
+            const badge = document.createElement('span');
+            badge.className = 'response-match-badge response-match-badge-not-checked';
+            badge.textContent = 'Not checked';
+            badge.title = 'The request failed before response matchers could be checked';
+            cell.appendChild(badge);
+            return;
+        }
+
+        if (matchers.length === 0) {
+            const badge = document.createElement('span');
+            badge.className = 'response-match-badge response-match-badge-negative';
+            badge.textContent = 'No match';
+            badge.title = 'None of the configured response matchers matched';
+            cell.appendChild(badge);
+            return;
+        }
+
+        matchers.forEach(matcher => {
+            const badge = document.createElement('span');
+            badge.className = 'response-match-badge';
+            badge.dataset.mode = matcher.mode;
+            badge.textContent = matcher.text;
+            badge.title = `${matcher.mode === 'whole' ? 'Whole response' : 'Contains'}: ${matcher.text}`;
+            cell.appendChild(badge);
+        });
+    }
 
     // We use elements.rawRequestInput from ui.js
 
@@ -273,17 +420,22 @@ export function setupBulkReplay() {
         markPayloadItem.addEventListener('click', () => {
             // Use the selection information stored by `setupContextMenu` in `ui-utils.js`
             const targetType = contextMenu.dataset.target;
-            const editor = targetType === 'request' ? elements.rawRequestInput : elements.rawResponseDisplay;
-
-            if (!editor) {
-                contextMenu.classList.remove('show');
-                return;
-            }
-
             const rawSelected = contextMenu.dataset.selectedText || '';
             const selectedText = rawSelected.trim();
 
             if (!selectedText) {
+                contextMenu.classList.remove('show');
+                return;
+            }
+
+            if (targetType === 'response') {
+                addMarkedResponseMatcher(selectedText);
+                contextMenu.classList.remove('show');
+                return;
+            }
+
+            const editor = elements.rawRequestInput;
+            if (!editor) {
                 contextMenu.classList.remove('show');
                 return;
             }
@@ -350,6 +502,11 @@ export function setupBulkReplay() {
 
     async function startBulkReplay() {
         const template = elements.rawRequestInput.innerText;
+        const responseMatchers = readResponseMatchers();
+        const responseMatchCaseSensitive = responseMatchCaseSensitiveInput?.checked ?? true;
+
+        state.responseMatchers = responseMatchers;
+        state.responseMatchCaseSensitive = responseMatchCaseSensitive;
 
         if (state.currentAttackType === 'battering-ram') {
             const container = document.getElementById('battering-ram-config');
@@ -453,6 +610,7 @@ export function setupBulkReplay() {
                 <td class="status-cell">Sending...</td>
                 <td class="size-cell">-</td>
                 <td class="time-cell">-</td>
+                <td class="matches-cell empty">—</td>
             `;
             bulkResultsTable.appendChild(row);
             row.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -497,6 +655,14 @@ export function setupBulkReplay() {
                         } else {
                             elements.rawResponseDisplay.innerHTML = highlightHTTP(rawResponse);
                         }
+
+                        const highlightMatchers = (result.responseMatches || []).map(matcher => ({
+                            ...matcher,
+                            mode: 'partial'
+                        }));
+                        highlightResponseMatches(elements.rawResponseDisplay, highlightMatchers, {
+                            caseSensitive: result.responseMatchCaseSensitive
+                        });
                     }
                 }
             });
@@ -571,6 +737,10 @@ export function setupBulkReplay() {
                 const responseSize = new TextEncoder().encode(responseBody).length;
                 const duration = `${(endTime - startTime).toFixed(0)}ms`;
 
+                const responseMatches = getMatchedResponseMatchers(responseBody, responseMatchers, {
+                    caseSensitive: responseMatchCaseSensitive
+                });
+
                 bulkResults[i] = {
                     requestContent: requestContent,
                     status: response.status,
@@ -579,12 +749,19 @@ export function setupBulkReplay() {
                     responseBody: responseBody,
                     size: responseSize,
                     duration: duration,
+                    responseMatches,
+                    responseMatchCaseSensitive,
                     error: null
                 };
 
                 row.querySelector('.status-cell').textContent = `${response.status} ${response.statusText}`;
                 row.querySelector('.size-cell').textContent = formatBytes(responseSize);
                 row.querySelector('.time-cell').textContent = duration;
+                renderResponseMatches(row.querySelector('.matches-cell'), responseMatches, {
+                    configuredMatcherCount: responseMatchers.length
+                });
+                row.classList.toggle('has-response-match', responseMatches.length > 0);
+                row.classList.toggle('has-no-response-match', responseMatchers.length > 0 && responseMatches.length === 0);
 
             } catch (error) {
                 const endTime = performance.now();
@@ -598,11 +775,17 @@ export function setupBulkReplay() {
                     responseBody: '',
                     size: 0,
                     duration: `${(endTime - startTime).toFixed(0)}ms`,
+                    responseMatches: [],
+                    responseMatchCaseSensitive,
                     error: error.message
                 };
 
                 row.querySelector('.status-cell').textContent = 'Error';
                 row.querySelector('.status-cell').title = error.message;
+                renderResponseMatches(row.querySelector('.matches-cell'), [], {
+                    configuredMatcherCount: responseMatchers.length,
+                    error: true
+                });
             }
 
             completed++;

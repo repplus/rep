@@ -1462,6 +1462,125 @@ body.theme-transitioning img {
 }
 
 
+.response-match-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.response-match-heading label {
+    margin: 0;
+}
+
+.response-match-heading .secondary-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+}
+
+.response-matcher-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.response-matcher-empty {
+    padding: 10px;
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    color: #5f6368;
+    font-size: 11px;
+    text-align: center;
+}
+
+.response-matcher-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 125px 30px;
+    gap: 6px;
+}
+
+.response-matcher-row .form-control {
+    min-width: 0;
+}
+
+.response-matcher-remove {
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: #9aa0a6;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.response-matcher-remove:hover {
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.response-match-case-option {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    color: var(--text-color) !important;
+    cursor: pointer;
+}
+
+.response-match-case-option input {
+    margin: 0;
+}
+
+.matches-cell {
+    min-width: 140px;
+}
+
+.matches-cell.empty {
+    color: #5f6368;
+}
+
+#bulk-results-table tr.has-no-response-match > td:first-child {
+    box-shadow: inset 3px 0 0 var(--error-color);
+}
+
+.response-match-badge {
+    display: inline-block;
+    max-width: 220px;
+    margin: 1px 4px 1px 0;
+    padding: 2px 6px;
+    overflow: hidden;
+    border: 1px solid rgba(251, 188, 4, 0.55);
+    border-radius: 999px;
+    background: rgba(251, 188, 4, 0.16);
+    color: var(--text-color);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.response-match-badge-negative {
+    border-color: var(--error-color);
+    background: rgba(242, 139, 130, 0.14);
+    color: var(--error-color);
+    font-weight: 600;
+}
+
+.response-match-badge-not-checked {
+    border-color: #5f6368;
+    border-style: dashed;
+    background: rgba(95, 99, 104, 0.12);
+    color: #9aa0a6;
+}
+
+.response-match-highlight {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: #fbbc04;
+    color: #202124;
+    box-shadow: 0 0 0 1px rgba(251, 188, 4, 0.35);
+}
+
 /* Table Styles */
 .table-container {
     flex: 1;
@@ -5316,4 +5435,3 @@ pre {
         transform: translateX(0);
     }
 }
-

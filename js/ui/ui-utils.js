@@ -525,6 +525,11 @@ function showContextMenu(x, y, targetElement) {
     const isRequest = targetElement === elements.rawRequestInput;
     elements.contextMenu.dataset.target = isRequest ? 'request' : 'response';
 
+    const markItem = elements.contextMenu.querySelector('[data-action="mark-payload"]');
+    if (markItem) {
+        markItem.textContent = isRequest ? 'Mark Payload (§)' : 'Add Response Matcher';
+    }
+
     // Configure visibility and enabled state for "Copy as" group
     const copyAsGroup = elements.contextMenu.querySelector('#ctx-copy-as-group');
     if (copyAsGroup) {
@@ -1786,4 +1791,3 @@ export function importRequests(file) {
     };
     reader.readAsText(file);
 }
-
