@@ -28,13 +28,18 @@ export function setupBulkReplay() {
 
         const content = elements.rawRequestInput.innerText;
         const hasMarkers = /§[\s\S]*?§/.test(content);
+        const hasSavedTemplate = /§[\s\S]*?§/.test(state.bulkReplayTemplate || '');
 
-        if (hasMarkers) {
+        if (hasMarkers || hasSavedTemplate) {
             bulkReplayBtn.disabled = false;
             bulkReplayBtn.classList.add('ready');
+            bulkReplayBtn.title = hasMarkers
+                ? 'Bulk Replay - Configure marked payloads'
+                : 'Bulk Replay - Reuse previous marked request and configuration';
         } else {
             bulkReplayBtn.disabled = true;
             bulkReplayBtn.classList.remove('ready');
+            bulkReplayBtn.title = 'Bulk Replay - Mark parameters with § to start attack';
         }
     }
 
@@ -56,7 +61,10 @@ export function setupBulkReplay() {
         bulkReplayBtn.addEventListener('click', () => {
             if (bulkReplayBtn.disabled) return;
 
-            const content = elements.rawRequestInput.innerText;
+            const currentContent = elements.rawRequestInput.innerText;
+            const content = /§[\s\S]*?§/.test(currentContent)
+                ? currentContent
+                : state.bulkReplayTemplate;
             const matches = content.match(/§[\s\S]*?§/g);
             const count = matches ? matches.length : 0;
             document.getElementById('payload-count').textContent = count;
@@ -66,20 +74,31 @@ export function setupBulkReplay() {
                 return;
             }
 
-            // Initialize position configs
-            state.positionConfigs = matches.map((match, index) => ({
-                index,
-                originalValue: match.replace(/§/g, ''),
-                type: 'simple-list',
-                list: '',
-                numbers: { from: 1, to: 10, step: 1 }
-            }));
+            const isSavedTemplate = content === state.bulkReplayTemplate &&
+                state.positionConfigs.length === matches.length;
+
+            if (!isSavedTemplate) {
+                state.bulkReplayTemplate = content;
+                state.positionConfigs = matches.map((match, index) => ({
+                    index,
+                    originalValue: match.replace(/§/g, ''),
+                    type: 'simple-list',
+                    list: '',
+                    numbers: { from: 1, to: 10, step: 1 }
+                }));
+                state.batteringRamConfig = {
+                    type: 'simple-list',
+                    list: '',
+                    numbers: { from: 1, to: 10, step: 1 }
+                };
+                state.currentAttackType = 'sniper';
+            }
 
             populatePositionsContainer(matches);
+            populateBatteringRamConfig();
 
-            state.currentAttackType = 'sniper';
-            document.getElementById('attack-type').value = 'sniper';
-            updateAttackTypeUI('sniper');
+            document.getElementById('attack-type').value = state.currentAttackType;
+            updateAttackTypeUI(state.currentAttackType);
 
             bulkConfigModal.style.display = 'block';
         });
@@ -131,20 +150,59 @@ export function setupBulkReplay() {
             `;
             container.appendChild(card);
 
+            const config = state.positionConfigs[index];
             const typeSelect = card.querySelector('.payload-type-select');
-            typeSelect.addEventListener('change', (e) => {
-                const card = e.target.closest('.position-card');
+            const listInput = card.querySelector('.payload-list-input');
+            const fromInput = card.querySelector('.num-from-input');
+            const toInput = card.querySelector('.num-to-input');
+            const stepInput = card.querySelector('.num-step-input');
+            typeSelect.value = config.type;
+            listInput.value = config.list;
+            fromInput.value = config.numbers.from;
+            toInput.value = config.numbers.to;
+            stepInput.value = config.numbers.step;
+
+            const updatePayloadType = () => {
                 const simpleList = card.querySelector('.payload-options-simple-list');
                 const numbers = card.querySelector('.payload-options-numbers');
-                if (e.target.value === 'simple-list') {
-                    simpleList.style.display = 'block';
-                    numbers.style.display = 'none';
-                } else {
-                    simpleList.style.display = 'none';
-                    numbers.style.display = 'block';
-                }
+                simpleList.style.display = typeSelect.value === 'simple-list' ? 'block' : 'none';
+                numbers.style.display = typeSelect.value === 'numbers' ? 'block' : 'none';
+            };
+
+            typeSelect.addEventListener('change', (e) => {
+                config.type = e.target.value;
+                updatePayloadType();
             });
+            listInput.addEventListener('input', () => {
+                config.list = listInput.value;
+            });
+            [[fromInput, 'from'], [toInput, 'to'], [stepInput, 'step']].forEach(([input, key]) => {
+                input.addEventListener('input', () => {
+                    const value = parseInt(input.value, 10);
+                    if (!Number.isNaN(value)) config.numbers[key] = value;
+                });
+            });
+            updatePayloadType();
         });
+    }
+
+    function populateBatteringRamConfig() {
+        const container = document.getElementById('battering-ram-config');
+        if (!container) return;
+
+        const config = state.batteringRamConfig;
+        const typeSelect = container.querySelector('.payload-type-select');
+        const listInput = container.querySelector('.payload-list-input');
+        const fromInput = container.querySelector('.num-from-input');
+        const toInput = container.querySelector('.num-to-input');
+        const stepInput = container.querySelector('.num-step-input');
+        typeSelect.value = config.type;
+        listInput.value = config.list;
+        if (fromInput) fromInput.value = config.numbers.from;
+        if (toInput) toInput.value = config.numbers.to;
+        if (stepInput) stepInput.value = config.numbers.step;
+        container.querySelector('.payload-options-simple-list').style.display = config.type === 'simple-list' ? 'block' : 'none';
+        container.querySelector('.payload-options-numbers').style.display = config.type === 'numbers' ? 'block' : 'none';
     }
 
     const attackTypeSelect = document.getElementById('attack-type');
@@ -202,6 +260,20 @@ export function setupBulkReplay() {
                 simpleList.style.display = 'none';
                 numbers.style.display = 'block';
             }
+            state.batteringRamConfig.type = e.target.value;
+        });
+
+        document.getElementById('battering-ram-config').addEventListener('input', (e) => {
+            if (e.target.classList.contains('payload-list-input')) {
+                state.batteringRamConfig.list = e.target.value;
+                return;
+            }
+
+            const numberKey = e.target.classList.contains('num-from-input') ? 'from' :
+                e.target.classList.contains('num-to-input') ? 'to' :
+                    e.target.classList.contains('num-step-input') ? 'step' : null;
+            const value = parseInt(e.target.value, 10);
+            if (numberKey && !Number.isNaN(value)) state.batteringRamConfig.numbers[numberKey] = value;
         });
     }
 
@@ -349,44 +421,45 @@ export function setupBulkReplay() {
     }
 
     async function startBulkReplay() {
-        const template = elements.rawRequestInput.innerText;
+        const template = state.bulkReplayTemplate || elements.rawRequestInput.innerText;
 
+        let attackPositionConfigs = state.positionConfigs;
         if (state.currentAttackType === 'battering-ram') {
             const container = document.getElementById('battering-ram-config');
             const type = container.querySelector('.payload-type-select').value;
-            const sharedConfig = {
+            state.batteringRamConfig = {
                 type,
-                list: type === 'simple-list' ? container.querySelector('.payload-list-input').value : '',
-                numbers: type === 'numbers' ? {
+                list: container.querySelector('.payload-list-input').value,
+                numbers: {
                     from: parseInt(container.querySelector('.num-from-input').value),
                     to: parseInt(container.querySelector('.num-to-input').value),
                     step: parseInt(container.querySelector('.num-step-input').value)
-                } : { from: 1, to: 10, step: 1 }
+                }
             };
 
-            state.positionConfigs.forEach(config => {
-                config.type = sharedConfig.type;
-                config.list = sharedConfig.list;
-                config.numbers = sharedConfig.numbers;
-            });
+            attackPositionConfigs = state.positionConfigs.map(config => ({
+                ...config,
+                type: state.batteringRamConfig.type,
+                list: state.batteringRamConfig.list,
+                numbers: { ...state.batteringRamConfig.numbers }
+            }));
         } else {
             const cards = document.querySelectorAll('.position-card');
             cards.forEach((card, index) => {
                 const type = card.querySelector('.payload-type-select').value;
                 state.positionConfigs[index].type = type;
-                state.positionConfigs[index].list = type === 'simple-list' ?
-                    card.querySelector('.payload-list-input').value : '';
-                state.positionConfigs[index].numbers = type === 'numbers' ? {
+                state.positionConfigs[index].list = card.querySelector('.payload-list-input').value;
+                state.positionConfigs[index].numbers = {
                     from: parseInt(card.querySelector('.num-from-input').value),
                     to: parseInt(card.querySelector('.num-to-input').value),
                     step: parseInt(card.querySelector('.num-step-input').value)
-                } : { from: 1, to: 10, step: 1 };
+                };
             });
         }
 
         let attackRequests;
         try {
-            attackRequests = generateAttackRequests(state.currentAttackType, state.positionConfigs, template);
+            attackRequests = generateAttackRequests(state.currentAttackType, attackPositionConfigs, template);
         } catch (error) {
             alert(`Error generating attack requests: ${error.message}`);
             return;
@@ -464,6 +537,7 @@ export function setupBulkReplay() {
                 const result = bulkResults[i];
                 if (result) {
                     elements.rawRequestInput.innerText = result.requestContent;
+                    checkPayloadMarkers();
 
                     elements.resStatus.textContent = result.statusText ? `${result.status} ${result.statusText}` : result.status;
                     elements.resStatus.className = 'status-badge';
